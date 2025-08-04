@@ -1,4 +1,17 @@
-import React, { useState, useEffect } from 'react';
+// components/ToastNotification.jsx - React Native Version
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  StatusBar,
+  Platform,
+} from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 // Toast Context
 const ToastContext = React.createContext(null);
@@ -55,46 +68,88 @@ export function useToast() {
 
 // Toast Container
 function ToastContainer({ toasts, onRemove }) {
+  const statusBarHeight = Platform.OS === 'ios' ? 50 : StatusBar.currentHeight || 0;
+
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map(toast => (
-        <Toast key={toast.id} toast={toast} onRemove={onRemove} />
+    <View style={[styles.container, { top: statusBarHeight + 16 }]} pointerEvents="box-none">
+      {toasts.map((toast, index) => (
+        <Toast 
+          key={toast.id} 
+          toast={toast} 
+          onRemove={onRemove}
+          index={index}
+        />
       ))}
-    </div>
+    </View>
   );
 }
 
 // Individual Toast Component
-function Toast({ toast, onRemove }) {
-  const [isVisible, setIsVisible] = useState(false);
+function Toast({ toast, onRemove, index }) {
+  const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    setIsVisible(true);
+    // Toast giriş animasyonu
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const handleRemove = () => {
-    setIsVisible(false);
-    setTimeout(() => onRemove(toast.id), 300);
+    // Toast çıkış animasyonu
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: screenWidth,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onRemove(toast.id);
+    });
   };
 
-  const getToastStyles = () => {
-    const baseStyles = "flex items-center p-4 rounded-lg shadow-lg border transition-all duration-300 transform max-w-sm";
-    
-    if (!isVisible) {
-      return `${baseStyles} translate-x-full opacity-0`;
-    }
-
+  const getToastStyle = () => {
     switch (toast.type) {
       case 'success':
-        return `${baseStyles} bg-green-50 border-green-200 text-green-800 translate-x-0 opacity-100`;
+        return styles.successToast;
       case 'error':
-        return `${baseStyles} bg-red-50 border-red-200 text-red-800 translate-x-0 opacity-100`;
+        return styles.errorToast;
       case 'warning':
-        return `${baseStyles} bg-yellow-50 border-yellow-200 text-yellow-800 translate-x-0 opacity-100`;
+        return styles.warningToast;
       case 'info':
-        return `${baseStyles} bg-blue-50 border-blue-200 text-blue-800 translate-x-0 opacity-100`;
+        return styles.infoToast;
       default:
-        return `${baseStyles} bg-gray-50 border-gray-200 text-gray-800 translate-x-0 opacity-100`;
+        return styles.defaultToast;
+    }
+  };
+
+  const getTextStyle = () => {
+    switch (toast.type) {
+      case 'success':
+        return styles.successText;
+      case 'error':
+        return styles.errorText;
+      case 'warning':
+        return styles.warningText;
+      case 'info':
+        return styles.infoText;
+      default:
+        return styles.defaultText;
     }
   };
 
@@ -114,17 +169,126 @@ function Toast({ toast, onRemove }) {
   };
 
   return (
-    <div className={getToastStyles()}>
-      <div className="flex items-center">
-        <span className="text-lg mr-3">{getIcon()}</span>
-        <p className="text-sm font-medium flex-1">{toast.message}</p>
-        <button
-          onClick={handleRemove}
-          className="ml-3 text-gray-400 hover:text-gray-600 transition-colors"
+    <Animated.View
+      style={[
+        styles.toast,
+        getToastStyle(),
+        {
+          transform: [{ translateX: slideAnim }],
+          opacity: opacityAnim,
+          marginTop: index * 8, // Toast'ları biraz aralıklı göster
+        },
+      ]}
+    >
+      <View style={styles.toastContent}>
+        <Text style={styles.icon}>{getIcon()}</Text>
+        <Text style={[styles.message, getTextStyle()]} numberOfLines={3}>
+          {toast.message}
+        </Text>
+        <TouchableOpacity
+          onPress={handleRemove}
+          style={styles.closeButton}
+          activeOpacity={0.7}
         >
-          ✕
-        </button>
-      </div>
-    </div>
+          <Text style={styles.closeButtonText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    right: 16,
+    left: 16,
+    zIndex: 9999,
+    elevation: 9999, // Android için
+  },
+  toast: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8, // Android shadow
+    borderWidth: 1,
+    maxWidth: screenWidth - 32,
+  },
+  toastContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  icon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  message: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  closeButton: {
+    marginLeft: 12,
+    padding: 4,
+    borderRadius: 12,
+    minWidth: 24,
+    minHeight: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    fontWeight: 'bold',
+  },
+  // Success styles
+  successToast: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+  },
+  successText: {
+    color: '#166534',
+  },
+  // Error styles
+  errorToast: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: '#991B1B',
+  },
+  // Warning styles
+  warningToast: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FED7AA',
+  },
+  warningText: {
+    color: '#92400E',
+  },
+  // Info styles
+  infoToast: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+  },
+  infoText: {
+    color: '#1E40AF',
+  },
+  // Default styles
+  defaultToast: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  defaultText: {
+    color: '#374151',
+  },
+});
+
+export default ToastProvider;
