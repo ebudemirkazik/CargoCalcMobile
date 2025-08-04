@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import IncomeInput from './components/IncomeInput';
 import AddExpenseForm from './components/AddExpenseForm';
+import ExpenseDonutChart from './components/ExpenseDonutChart';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -59,6 +60,9 @@ export default function App() {
 
         {/* Masraf Ekleme - Real Component */}
         <AddExpenseForm onAddExpense={handleAddExpense} />
+
+        {/* Masraf Dağılımı Grafiği - Real Component */}
+        <ExpenseDonutChart expenses={expenses} />
 
         {/* Masraf Listesi */}
         <View style={styles.card}>
@@ -122,6 +126,7 @@ export default function App() {
           <Text style={styles.testText}>
             ✅ IncomeInput Component: Aktif{'\n'}
             ✅ AddExpenseForm Component: Aktif{'\n'}
+            ✅ ExpenseDonutChart Component: Aktif{'\n'}
             ⏳ Diğer componentler: Gelecek
           </Text>
           <Text style={styles.testNote}>
