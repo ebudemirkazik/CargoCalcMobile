@@ -1,20 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { useToast } from "./ToastNotification";
+// components/FixedExpenses.jsx - React Native Version (Fixed AsyncStorage)
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Dimensions,
+} from 'react-native';
+
+// AsyncStorage'ı kaldırdık - şimdilik memory'de tutacağız
+// import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
 function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
-  const { addToast } = useToast();
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [newExpense, setNewExpense] = useState({
-    name: "",
-    yearlyAmount: "",
+    name: '',
+    yearlyAmount: '',
     kdvRate: 20,
   });
 
-  // localStorage'dan yükle
+  // Basit memory storage - şimdilik AsyncStorage yerine
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("fixedExpenses")) || [];
-    setFixedExpenses(stored);
-    calculateMonthlyExpenses(stored);
+    // İlk yükleme - boş başlıyoruz
+    calculateMonthlyExpenses([]);
   }, []);
 
   // Aylık masrafları hesapla ve parent'a gönder
@@ -25,45 +39,54 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       isFixed: true, // Sabit gider olduğunu belirt
     }));
 
-    // Parent'a sadece hesaplama için gönder, otomatik ekleme yapmayacağız
+    // Parent'a sadece hesaplama için gönder
     if (onFixedExpensesChange) {
       onFixedExpensesChange(monthlyExpenses);
     }
   };
 
   // Yeni sabit gider ekle
-  const handleAddExpense = (e) => {
-    e.preventDefault();
-
+  const handleAddExpense = () => {
     if (!newExpense.name || !newExpense.yearlyAmount) {
-      addToast("Lütfen tüm alanları doldurun!", "warning", 3000);
+      Alert.alert('Uyarı', 'Lütfen tüm alanları doldurun!');
       return;
     }
 
     const expense = {
       id: Date.now(),
-      name: newExpense.name,
+      name: newExpense.name.trim(),
       yearlyAmount: parseFloat(newExpense.yearlyAmount),
       kdvRate: parseFloat(newExpense.kdvRate),
     };
 
     const updated = [...fixedExpenses, expense];
     setFixedExpenses(updated);
-    localStorage.setItem("fixedExpenses", JSON.stringify(updated));
     calculateMonthlyExpenses(updated);
 
     // Form'u temizle
-    setNewExpense({ name: "", yearlyAmount: "", kdvRate: 20 });
-    addToast("Sabit gider başarıyla eklendi!", "success", 3000);
+    setNewExpense({ name: '', yearlyAmount: '', kdvRate: 20 });
+    Alert.alert('Başarılı!', 'Sabit gider başarıyla eklendi!');
   };
 
   // Sabit gider sil
   const handleDeleteExpense = (id) => {
-    const updated = fixedExpenses.filter((expense) => expense.id !== id);
-    setFixedExpenses(updated);
-    localStorage.setItem("fixedExpenses", JSON.stringify(updated));
-    calculateMonthlyExpenses(updated);
-    addToast("Sabit gider silindi!", "success", 2000);
+    Alert.alert(
+      'Silme Onayı',
+      'Bu sabit gideri silmek istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: () => {
+            const updated = fixedExpenses.filter((expense) => expense.id !== id);
+            setFixedExpenses(updated);
+            calculateMonthlyExpenses(updated);
+            Alert.alert('Başarılı!', 'Sabit gider silindi!');
+          },
+        },
+      ]
+    );
   };
 
   // Sabit gideri manuel masraflara ekle
@@ -77,17 +100,14 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
 
     if (onAddToManualExpenses) {
       onAddToManualExpenses(manualExpense);
-      addToast(
-        `${expense.name} manuel masraflara eklendi! (${format(
-          monthlyAmount
-        )} ₺)`,
-        "success",
-        3000
+      Alert.alert(
+        'Başarılı!',
+        `${expense.name} manuel masraflara eklendi!\nAylık tutar: ${format(monthlyAmount)} ₺`
       );
     }
   };
 
-  const format = (n) => n.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+  const format = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
   const totalYearlyAmount = fixedExpenses.reduce(
     (sum, expense) => sum + expense.yearlyAmount,
@@ -97,260 +117,529 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
 
   // Toplam KDV hesapla
   const totalYearlyKdv = fixedExpenses.reduce((sum, expense) => {
-    const kdv =
-      expense.yearlyAmount * (expense.kdvRate / (100 + expense.kdvRate));
+    const kdv = expense.yearlyAmount * (expense.kdvRate / (100 + expense.kdvRate));
     return sum + (isNaN(kdv) ? 0 : kdv);
   }, 0);
   const totalMonthlyKdv = Math.round(totalYearlyKdv / 12);
 
-  return (
-    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-      <h2 className="text-xl sm:text-lg font-bold sm:font-semibold mb-6 sm:mb-3 text-gray-800">
-        Yıllık Sabit Giderler
-      </h2>
+  // KDV Options
+  const kdvOptions = [
+    { value: 0, label: '%0', desc: 'Muaf' },
+    { value: 1, label: '%1', desc: 'Özel' },
+    { value: 10, label: '%10', desc: 'İndirimli' },
+    { value: 20, label: '%20', desc: 'Genel' },
+  ];
 
-      {/* Yeni sabit gider ekleme formu */}
-      <form onSubmit={handleAddExpense} className="mb-6 sm:mb-4">
-        <div className="space-y-4 sm:space-y-3 mb-4 sm:mb-3">
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        {/* Header */}
+        <Text style={styles.headerTitle}>💾 Yıllık Sabit Giderler</Text>
+
+        {/* Yeni sabit gider ekleme formu */}
+        <View style={styles.formSection}>
           {/* Gider Adı */}
-          <div>
-            <label className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-700 mb-2 sm:mb-1">
-              Gider Adı
-            </label>
-            <input
-              type="text"
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Gider Adı</Text>
+            <TextInput
+              style={styles.input}
               placeholder="Örn: Sigorta, Bakım, Lastik"
               value={newExpense.name}
-              onChange={(e) =>
-                setNewExpense({ ...newExpense, name: e.target.value })
-              }
-              className="w-full border border-gray-300 rounded-xl sm:rounded-lg px-4 sm:px-3 py-4 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChangeText={(value) => setNewExpense({ ...newExpense, name: value })}
+              placeholderTextColor="#9CA3AF"
+              returnKeyType="next"
             />
-          </div>
+          </View>
 
           {/* Yıllık Tutar */}
-          <div>
-            <label className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-700 mb-2 sm:mb-1">
-              Yıllık Tutar (₺)
-            </label>
-            <input
-              type="number"
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Yıllık Tutar (₺)</Text>
+            <TextInput
+              style={styles.input}
               placeholder="Örn: 12000"
               value={newExpense.yearlyAmount}
-              onChange={(e) =>
-                setNewExpense({ ...newExpense, yearlyAmount: e.target.value })
-              }
-              className="w-full border border-gray-300 rounded-xl sm:rounded-lg px-4 sm:px-3 py-4 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChangeText={(value) => setNewExpense({ ...newExpense, yearlyAmount: value })}
+              placeholderTextColor="#9CA3AF"
+              keyboardType="numeric"
+              returnKeyType="done"
             />
-          </div>
+          </View>
 
-          {/* KDV Oranı */}
-          <div>
-            <label className="block text-base sm:text-sm font-semibold sm:font-medium text-gray-700 mb-2 sm:mb-1">
-              KDV Oranı
-            </label>
-            <select
-              value={newExpense.kdvRate}
-              onChange={(e) =>
-                setNewExpense({ ...newExpense, kdvRate: e.target.value })
-              }
-              className="w-full border border-gray-300 rounded-xl sm:rounded-lg px-4 sm:px-3 py-4 sm:py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="0">KDV %0 - Muaf</option>
-              <option value="1">KDV %1 - Özel</option>
-              <option value="10">KDV %10 - İndirimli</option>
-              <option value="20">KDV %20 - Genel</option>
-            </select>
-          </div>
-        </div>
+          {/* KDV Oranı - Button Grid */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>KDV Oranı</Text>
+            <View style={styles.kdvButtonGrid}>
+              {kdvOptions.map((kdvOption) => (
+                <TouchableOpacity
+                  key={kdvOption.value}
+                  onPress={() => setNewExpense({ ...newExpense, kdvRate: kdvOption.value })}
+                  style={[
+                    styles.kdvButton,
+                    newExpense.kdvRate === kdvOption.value ? styles.kdvButtonSelected : styles.kdvButtonDefault
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.kdvButtonLabel,
+                    newExpense.kdvRate === kdvOption.value ? styles.kdvButtonLabelSelected : styles.kdvButtonLabelDefault
+                  ]}>
+                    KDV {kdvOption.label}
+                  </Text>
+                  <Text style={[
+                    styles.kdvButtonDesc,
+                    newExpense.kdvRate === kdvOption.value ? styles.kdvButtonDescSelected : styles.kdvButtonDescDefault
+                  ]}>
+                    {kdvOption.desc}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
 
-        {/* Aylık tutar önizlemesi */}
-        {newExpense.yearlyAmount &&
-          !isNaN(parseFloat(newExpense.yearlyAmount)) && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl sm:rounded-lg p-4 sm:p-3 mb-4 sm:mb-3">
-              <p className="text-base sm:text-sm font-semibold text-blue-800 mb-2 sm:mb-1">
-                Aylık Tutar Önizlemesi:
-              </p>
-              <div className="space-y-1 text-sm sm:text-xs text-blue-700">
-                <p>
-                  • Aylık Tutar:{" "}
-                  <span className="font-semibold">
+          {/* Aylık tutar önizlemesi */}
+          {newExpense.yearlyAmount && !isNaN(parseFloat(newExpense.yearlyAmount)) && (
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewTitle}>📅 Aylık Tutar Önizlemesi:</Text>
+              <View style={styles.previewContent}>
+                <Text style={styles.previewText}>
+                  • Aylık Tutar:{' '}
+                  <Text style={styles.previewValue}>
                     {format(parseFloat(newExpense.yearlyAmount) / 12)} ₺
-                  </span>
-                </p>
+                  </Text>
+                </Text>
                 {newExpense.kdvRate > 0 && (
-                  <p>
-                    • Aylık KDV İndirimi:{" "}
-                    <span className="font-semibold">
+                  <Text style={styles.previewText}>
+                    • Aylık KDV İndirimi:{' '}
+                    <Text style={styles.previewValue}>
                       {format(
                         (parseFloat(newExpense.yearlyAmount) / 12) *
-                          (newExpense.kdvRate /
-                            (100 + parseFloat(newExpense.kdvRate)))
-                      )}{" "}
+                          (newExpense.kdvRate / (100 + parseFloat(newExpense.kdvRate)))
+                      )}{' '}
                       ₺
-                    </span>
-                  </p>
+                    </Text>
+                  </Text>
                 )}
-              </div>
-            </div>
+              </View>
+            </View>
           )}
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={!newExpense.name || !newExpense.yearlyAmount}
-          className={`
-            w-full py-4 sm:py-2 px-6 sm:px-4 rounded-xl sm:rounded-lg text-lg sm:text-sm font-bold sm:font-medium 
-            transition-all transform active:scale-95 sm:active:scale-100
-            ${
-              !newExpense.name || !newExpense.yearlyAmount
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                : "bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            }
-          `}
-        >
-          Sabit Gider Ekle
-        </button>
-      </form>
+          {/* Submit Button */}
+          <TouchableOpacity
+            onPress={handleAddExpense}
+            disabled={!newExpense.name || !newExpense.yearlyAmount}
+            style={[
+              styles.submitButton,
+              (!newExpense.name || !newExpense.yearlyAmount) ? styles.submitButtonDisabled : styles.submitButtonEnabled
+            ]}
+            activeOpacity={(!newExpense.name || !newExpense.yearlyAmount) ? 1 : 0.8}
+          >
+            <Text style={[
+              styles.submitButtonText,
+              (!newExpense.name || !newExpense.yearlyAmount) ? styles.submitButtonTextDisabled : styles.submitButtonTextEnabled
+            ]}>
+              Sabit Gider Ekle
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Sabit giderler listesi */}
-      {fixedExpenses.length > 0 && (
-        <div className="space-y-4 sm:space-y-2 mb-6 sm:mb-4">
-          <h3 className="font-semibold text-base sm:text-sm text-gray-700">
-            Kayıtlı Sabit Giderler:
-          </h3>
+        {/* Sabit giderler listesi */}
+        {fixedExpenses.length > 0 && (
+          <View style={styles.expensesList}>
+            <Text style={styles.listTitle}>📋 Kayıtlı Sabit Giderler:</Text>
 
-          <div className="space-y-3 sm:space-y-2">
             {fixedExpenses.map((expense) => {
-              const yearlyKdv =
-                expense.yearlyAmount *
-                (expense.kdvRate / (100 + expense.kdvRate));
+              const yearlyKdv = expense.yearlyAmount * (expense.kdvRate / (100 + expense.kdvRate));
               const monthlyKdv = Math.round(yearlyKdv / 12);
               const monthlyAmount = Math.round(expense.yearlyAmount / 12);
 
               return (
-                <div
-                  key={expense.id}
-                  className="bg-gray-50 border border-gray-200 rounded-xl sm:rounded-lg p-4 sm:p-3"
-                >
-                  {/* Başlık ve Butonlar */}
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3 sm:mb-2">
-                    <div className="flex-1 mb-3 sm:mb-0 sm:mr-3">
-                      <h4 className="text-lg sm:text-base font-bold sm:font-semibold text-gray-800 mb-1">
-                        {expense.name}
-                      </h4>
+                <View key={expense.id} style={styles.expenseItem}>
+                  {/* Expense Info */}
+                  <View style={styles.expenseInfo}>
+                    <Text style={styles.expenseName}>{expense.name}</Text>
+                    
+                    <View style={styles.expenseAmounts}>
+                      <Text style={styles.expenseYearly}>
+                        Yıllık: <Text style={styles.expenseYearlyValue}>{format(expense.yearlyAmount)} ₺</Text>
+                      </Text>
+                      <Text style={styles.expenseMonthly}>
+                        Aylık: <Text style={styles.expenseMonthlyValue}>{format(monthlyAmount)} ₺</Text>
+                      </Text>
+                      {expense.kdvRate > 0 && (
+                        <Text style={styles.expenseKdv}>
+                          KDV %{expense.kdvRate} = {format(monthlyKdv)} ₺/ay
+                        </Text>
+                      )}
+                    </View>
+                  </View>
 
-                      {/* Tutarlar */}
-                      <div className="space-y-1">
-                        <p className="text-base sm:text-sm text-gray-600">
-                          Yıllık:{" "}
-                          <span className="font-semibold text-gray-800">
-                            {format(expense.yearlyAmount)} ₺
-                          </span>
-                        </p>
-                        <p className="text-base sm:text-sm text-blue-600">
-                          Aylık:{" "}
-                          <span className="font-bold">
-                            {format(monthlyAmount)} ₺
-                          </span>
-                        </p>
-                        {expense.kdvRate > 0 && (
-                          <p className="text-sm sm:text-xs text-green-600">
-                            KDV %{expense.kdvRate} = {format(monthlyKdv)} ₺/ay
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                  {/* Action Buttons */}
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      onPress={() => handleAddToManual(expense)}
+                      style={styles.addButton}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.addButtonText}>
+                        {isTablet ? 'Manuel Listeye Ekle' : 'Ekle'}
+                      </Text>
+                    </TouchableOpacity>
 
-                    {/* Butonlar */}
-                    <div className="flex space-x-3 sm:space-x-2">
-                      {/* Manuel masraflara ekle butonu */}
-                      <button
-                        onClick={() => handleAddToManual(expense)}
-                        className="flex-1 sm:flex-none bg-green-500 hover:bg-green-700 text-white px-4 sm:px-3 py-3 sm:py-1.75 rounded-xl sm:rounded text-base sm:text-xs font-semibold sm:font-medium transition-all transform active:scale-95 sm:active:scale-100 min-h-[48px] sm:min-h-auto"
-                        title={`${
-                          expense.name
-                        } masrafını manuel listeye ekle (${format(
-                          monthlyAmount
-                        )} ₺)`}
-                      >
-                        <span className="sm:hidden">Manuel Listeye Ekle</span>
-                        <span className="hidden sm:inline text-base sm:text-xs">Ekle</span>
-                      </button>
-
-                      {/* Sil butonu */}
-                      <button
-                        onClick={() => handleDeleteExpense(expense.id)}
-                        className="bg-blue-500 hover:bg-blue-700 text-white p-3 sm:p-1.75 rounded-xl sm:rounded min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center transition-all transform active:scale-95 sm:active:scale-100"
-                        title="Sabit gideri sil"
-                      >
-                        <span className="text-base sm:text-xs">Sil</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteExpense(expense.id)}
+                      style={styles.deleteButton}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.deleteButtonText}>Sil</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
               );
             })}
-          </div>
 
-          {/* Toplam */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl sm:rounded-lg p-4 sm:p-3 mt-4 sm:mt-3">
-            <div className="space-y-3 sm:space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-base sm:text-sm font-bold text-blue-800">
-                  Toplam Sabit Giderler:
-                </span>
-                <div className="text-right">
-                  <p className="text-sm sm:text-xs text-blue-600">
-                    {format(totalYearlyAmount)} ₺/yıl
-                  </p>
-                  <p className="text-lg sm:text-base font-bold text-blue-800">
-                    {format(totalMonthlyAmount)} ₺/ay
-                  </p>
-                </div>
-              </div>
+            {/* Toplam */}
+            <View style={styles.totalContainer}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Toplam Sabit Giderler:</Text>
+                <View style={styles.totalValues}>
+                  <Text style={styles.totalYearly}>{format(totalYearlyAmount)} ₺/yıl</Text>
+                  <Text style={styles.totalMonthly}>{format(totalMonthlyAmount)} ₺/ay</Text>
+                </View>
+              </View>
 
               {totalMonthlyKdv > 0 && (
-                <div className="flex justify-between items-center pt-2 sm:pt-1 border-t border-blue-200">
-                  <span className="text-base sm:text-sm font-semibold text-green-700">
-                    Toplam İndirilecek KDV:
-                  </span>
-                  <div className="text-right">
-                    <p className="text-sm sm:text-xs text-green-600">
-                      {format(totalYearlyKdv)} ₺/yıl
-                    </p>
-                    <p className="text-lg sm:text-base font-bold text-green-600">
-                      {format(totalMonthlyKdv)} ₺/ay
-                    </p>
-                  </div>
-                </div>
+                <View style={[styles.totalRow, styles.kdvRow]}>
+                  <Text style={styles.kdvLabel}>Toplam İndirilecek KDV:</Text>
+                  <View style={styles.totalValues}>
+                    <Text style={styles.kdvYearly}>{format(totalYearlyKdv)} ₺/yıl</Text>
+                    <Text style={styles.kdvMonthly}>{format(totalMonthlyKdv)} ₺/ay</Text>
+                  </View>
+                </View>
               )}
-            </div>
-          </div>
-        </div>
-      )}
+            </View>
+          </View>
+        )}
 
-      {/* Açıklama */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl sm:rounded-lg p-4 sm:p-3">
-        <p className="text-base sm:text-sm font-semibold text-blue-800 mb-3 sm:mb-2">
-          Nasıl Çalışır:
-        </p>
-        <div className="space-y-2 sm:space-y-1 text-sm sm:text-xs text-blue-700">
-          <p>
-            • Yıllık sabit giderlerinizi buraya kaydedin (sigorta, rutin bakım,
-            lastik vb.)
-          </p>
-          <p>
-            • Bu giderler sadece burada görünür ve aylık tutarları hesaplanır
-          </p>
-          <p>
-            • "Manuel Listeye Ekle" butonu ile aylık tutarları kolayca manuel
-            masraflara ekleyebilirsiniz
-          </p>
-        </div>
-      </div>
-    </div>
+        {/* Açıklama */}
+        <View style={styles.infoContainer}>
+          <Text style={styles.infoTitle}>🤔 Nasıl Çalışır:</Text>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoText}>
+              • Yıllık sabit giderlerinizi buraya kaydedin (sigorta, rutin bakım, lastik vb.)
+            </Text>
+            <Text style={styles.infoText}>
+              • Bu giderler sadece burada görünür ve aylık tutarları hesaplanır
+            </Text>
+            <Text style={styles.infoText}>
+              • "Ekle" butonu ile aylık tutarları kolayca manuel masraflara ekleyebilirsiniz
+            </Text>
+          </View>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: isTablet ? 24 : 20,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+
+  // Header
+  headerTitle: {
+    fontSize: isTablet ? 20 : 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 24,
+  },
+
+  // Form Section
+  formSection: {
+    marginBottom: 24,
+  },
+  fieldContainer: {
+    marginBottom: 20,
+  },
+  fieldLabel: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: isTablet ? 12 : 18,
+    fontSize: isTablet ? 14 : 16,
+    backgroundColor: '#ffffff',
+  },
+
+  // KDV Button Grid
+  kdvButtonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  kdvButton: {
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 12,
+    margin: 4,
+    alignItems: 'center',
+    minWidth: isTablet ? '22%' : '45%',
+    maxWidth: isTablet ? '24%' : '48%',
+  },
+  kdvButtonDefault: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  kdvButtonSelected: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#3B82F6',
+  },
+  kdvButtonLabel: {
+    fontSize: isTablet ? 14 : 12,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  kdvButtonLabelDefault: {
+    color: '#374151',
+  },
+  kdvButtonLabelSelected: {
+    color: '#1E40AF',
+  },
+  kdvButtonDesc: {
+    fontSize: 10,
+    fontWeight: '400',
+  },
+  kdvButtonDescDefault: {
+    color: '#6B7280',
+  },
+  kdvButtonDescSelected: {
+    color: '#1E40AF',
+  },
+
+  // Preview
+  previewContainer: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  previewTitle: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginBottom: 8,
+  },
+  previewContent: {
+    gap: 4,
+  },
+  previewText: {
+    fontSize: isTablet ? 14 : 12,
+    color: '#1E40AF',
+  },
+  previewValue: {
+    fontWeight: '600',
+  },
+
+  // Submit Button
+  submitButton: {
+    borderRadius: 12,
+    paddingVertical: isTablet ? 12 : 18,
+    alignItems: 'center',
+  },
+  submitButtonEnabled: {
+    backgroundColor: '#3B82F6',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  submitButtonText: {
+    fontSize: isTablet ? 14 : 16,
+    fontWeight: 'bold',
+  },
+  submitButtonTextEnabled: {
+    color: '#ffffff',
+  },
+  submitButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+
+  // Expenses List
+  expensesList: {
+    marginBottom: 24,
+  },
+  listTitle: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 16,
+  },
+  expenseItem: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  expenseInfo: {
+    marginBottom: 12,
+  },
+  expenseName: {
+    fontSize: isTablet ? 18 : 16,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  expenseAmounts: {
+    gap: 4,
+  },
+  expenseYearly: {
+    fontSize: isTablet ? 14 : 12,
+    color: '#6B7280',
+  },
+  expenseYearlyValue: {
+    fontWeight: '600',
+    color: '#374151',
+  },
+  expenseMonthly: {
+    fontSize: isTablet ? 14 : 12,
+    color: '#2563EB',
+  },
+  expenseMonthlyValue: {
+    fontWeight: 'bold',
+    color: '#1E40AF',
+  },
+  expenseKdv: {
+    fontSize: 12,
+    color: '#059669',
+  },
+
+  // Action Buttons
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flex: 1,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#ffffff',
+    fontSize: isTablet ? 12 : 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontSize: isTablet ? 12 : 14,
+    fontWeight: '600',
+  },
+
+  // Total Container
+  totalContainer: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  kdvRow: {
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#BFDBFE',
+  },
+  totalLabel: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+  },
+  kdvLabel: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  totalValues: {
+    alignItems: 'flex-end',
+  },
+  totalYearly: {
+    fontSize: 12,
+    color: '#1E40AF',
+  },
+  totalMonthly: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+  },
+  kdvYearly: {
+    fontSize: 12,
+    color: '#059669',
+  },
+  kdvMonthly: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+
+  // Info Container
+  infoContainer: {
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 16,
+  },
+  infoTitle: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginBottom: 12,
+  },
+  infoContent: {
+    gap: 8,
+  },
+  infoText: {
+    fontSize: isTablet ? 14 : 12,
+    color: '#1E40AF',
+    lineHeight: 18,
+  },
+});
 
 export default FixedExpenses;

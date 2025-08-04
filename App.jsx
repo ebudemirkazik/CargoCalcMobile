@@ -14,6 +14,7 @@ import {
 import IncomeInput from './components/IncomeInput';
 import AddExpenseForm from './components/AddExpenseForm';
 import ExpenseDonutChart from './components/ExpenseDonutChart';
+import FixedExpenses from './components/FixedExpenses';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -21,6 +22,7 @@ const isTablet = screenWidth >= 768;
 export default function App() {
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]);
 
   const handleAddExpense = (newExpense) => {
     const expenseWithId = {
@@ -33,6 +35,16 @@ export default function App() {
 
   const handleDeleteExpense = (id) => {
     setExpenses(prev => prev.filter(expense => expense.id !== id));
+  };
+
+  // Sabit giderleri güncelle
+  const handleFixedExpensesChange = (monthlyFixedExpenses) => {
+    setFixedExpenses(monthlyFixedExpenses);
+  };
+
+  // Sabit gideri manuel masraflara ekle
+  const handleAddToManualExpenses = (fixedExpense) => {
+    setExpenses(prev => [...prev, fixedExpense]);
   };
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -63,6 +75,12 @@ export default function App() {
 
         {/* Masraf Dağılımı Grafiği - Real Component */}
         <ExpenseDonutChart expenses={expenses} />
+
+        {/* Yıllık Sabit Giderler - Real Component */}
+        <FixedExpenses 
+          onFixedExpensesChange={handleFixedExpensesChange}
+          onAddToManualExpenses={handleAddToManualExpenses}
+        />
 
         {/* Masraf Listesi */}
         <View style={styles.card}>
@@ -127,10 +145,11 @@ export default function App() {
             ✅ IncomeInput Component: Aktif{'\n'}
             ✅ AddExpenseForm Component: Aktif{'\n'}
             ✅ ExpenseDonutChart Component: Aktif{'\n'}
+            ✅ FixedExpenses Component: Aktif{'\n'}
             ⏳ Diğer componentler: Gelecek
           </Text>
           <Text style={styles.testNote}>
-            Income: {income} | Expenses: {expenses.length} adet
+            Income: {income} | Expenses: {expenses.length} adet | Fixed: {fixedExpenses.length} adet
           </Text>
         </View>
 
