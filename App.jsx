@@ -27,16 +27,7 @@ export const useAppContext = () => {
 // Tab Sayfaları - Real Components
 import DataInputPage from './pages/DataInputPage';
 import ResultsPage from './pages/ResultsPage';
-
-const HistoryPage = () => (
-  <View style={styles.page}>
-    <Text style={styles.pageTitle}>📋 Geçmiş & Analiz</Text>
-    <Text style={styles.pageDesc}>Kayıtlı hesaplamalar ve trendler</Text>
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>HistoryList + Trend Charts</Text>
-    </View>
-  </View>
-);
+import HistoryPage from './pages/HistoryPage';
 
 // Ana App Component
 export default function App() {
