@@ -1,4 +1,4 @@
-// components/IncomeInput.jsx - React Native Version
+// components/IncomeInput.jsx - React Native Version with Side-by-Side KDV Layout
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -196,44 +196,6 @@ function IncomeInput({ income, setIncome }) {
               ))}
             </View>
           </View>
-
-          {/* Diğer Tutarlar - Genişletilebilir */}
-          <View style={styles.otherSection}>
-            <TouchableOpacity
-              onPress={() => setShowOtherAmounts(!showOtherAmounts)}
-              style={styles.expandButton}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.expandButtonText}>Diğer Tutarlar</Text>
-              <Text style={[styles.expandIcon, showOtherAmounts && styles.expandIconRotated]}>
-                ⬇️
-              </Text>
-            </TouchableOpacity>
-
-            {showOtherAmounts && (
-              <View style={styles.buttonGrid}>
-                {otherAmounts.map((item) => (
-                  <TouchableOpacity
-                    key={item.amount}
-                    onPress={() => handleQuickAmount(item.amount)}
-                    style={[
-                      styles.quickButton,
-                      styles.otherButton,
-                      income === item.amount ? styles.otherButtonSelected : styles.otherButtonDefault
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.quickButtonText,
-                      income === item.amount ? styles.otherButtonTextSelected : styles.otherButtonTextDefault
-                    ]}>
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
         </View>
 
         {/* Temizle Butonu */}
@@ -247,32 +209,34 @@ function IncomeInput({ income, setIncome }) {
           </TouchableOpacity>
         )}
 
-        {/* Hakediş Analizi */}
+        {/* Hakediş Analizi - Yan Yana Layout */}
         {income > 0 && !error && (
           <View style={styles.analysisContainer}>
             <Text style={styles.analysisTitle}>Hakediş Analizi:</Text>
 
-            <View style={styles.analysisGrid}>
-              <View style={styles.analysisCard}>
+            {/* KDV Bilgileri - Yan Yana */}
+            <View style={styles.kdvRow}>
+              <View style={styles.kdvInfoLeft}>
                 <Text style={styles.analysisCardLabel}>KDV Dahil Tutar:</Text>
                 <Text style={[styles.analysisCardValue, styles.infoColor]}>
                   {format(income)} ₺
                 </Text>
               </View>
 
-              <View style={styles.analysisCard}>
+              <View style={styles.kdvInfoRight}>
                 <Text style={styles.analysisCardLabel}>KDV Tutarı (%20):</Text>
                 <Text style={[styles.analysisCardValue, styles.redColor]}>
                   {format(income * (20 / 120))} ₺
                 </Text>
               </View>
+            </View>
 
-              <View style={[styles.analysisCard, styles.analysisCardFull]}>
-                <Text style={styles.analysisCardLabel}>Net Hakediş (KDV Hariç):</Text>
-                <Text style={[styles.analysisCardValue, styles.greenColor]}>
-                  {format(income - income * (20 / 120))} ₺
-                </Text>
-              </View>
+            {/* Net Hakediş - Tek Satır, Vurgulu */}
+            <View style={styles.netIncomeCard}>
+              <Text style={styles.netIncomeLabel}>Net Hakediş (KDV Hariç):</Text>
+              <Text style={[styles.netIncomeValue, styles.greenColor]}>
+                {format(income - income * (20 / 120))} ₺
+              </Text>
             </View>
           </View>
         )}
@@ -404,15 +368,16 @@ const styles = StyleSheet.create({
   buttonGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   quickButton: {
     borderWidth: 2,
     borderRadius: 12,
     paddingHorizontal: isTablet ? 16 : 12,
     paddingVertical: isTablet ? 12 : 14,
-    margin: 4,
-    minWidth: isTablet ? 80 : 70,
+    margin: 6,
+    minWidth: isTablet ? 80 : 135,
     alignItems: 'center',
   },
   quickButtonDefault: {
@@ -424,55 +389,13 @@ const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   quickButtonText: {
-    fontSize: isTablet ? 14 : 12,
+    fontSize: isTablet ? 18 : 16,
     fontWeight: '600',
   },
   quickButtonTextDefault: {
     color: '#1E40AF',
   },
   quickButtonTextSelected: {
-    color: '#ffffff',
-  },
-
-  // Other Section
-  otherSection: {
-    marginTop: 8,
-  },
-  expandButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  expandButtonText: {
-    fontSize: 12,
-    color: '#2563EB',
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  expandIcon: {
-    fontSize: 12,
-    transform: [{ rotate: '0deg' }],
-  },
-  expandIconRotated: {
-    transform: [{ rotate: '180deg' }],
-  },
-
-  // Other Buttons
-  otherButton: {
-    borderWidth: 1,
-  },
-  otherButtonDefault: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-  },
-  otherButtonSelected: {
-    backgroundColor: '#374151',
-    borderColor: '#374151',
-  },
-  otherButtonTextDefault: {
-    color: '#374151',
-  },
-  otherButtonTextSelected: {
     color: '#ffffff',
   },
 
@@ -490,7 +413,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Analysis
+  // Analysis - Yan Yana Layout
   analysisContainer: {
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
@@ -505,30 +428,64 @@ const styles = StyleSheet.create({
     color: '#1E40AF',
     marginBottom: 12,
   },
-  analysisGrid: {
+  
+  // KDV Row - Yan Yana
+  kdvRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 8,
   },
-  analysisCard: {
+  kdvInfoLeft: {
+    flex: 1,
     backgroundColor: '#ffffff',
     borderRadius: 8,
     padding: 12,
-    margin: 6,
-    width: isTablet ? '47%' : '47%',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
-  analysisCardFull: {
-    width: isTablet ? '97%' : '97%',
+  kdvInfoRight: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
   },
+  
+  // Net Income Card - Tek Satır, Vurgulu
+  netIncomeCard: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    alignItems: 'center',
+  },
+  
   analysisCardLabel: {
     fontSize: 12,
     color: '#374151',
     fontWeight: '500',
     marginBottom: 4,
+    textAlign: 'center',
   },
   analysisCardValue: {
     fontSize: isTablet ? 16 : 14,
     fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  netIncomeLabel: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '600',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  netIncomeValue: {
+    fontSize: isTablet ? 18 : 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   infoColor: {
     color: '#1E40AF',

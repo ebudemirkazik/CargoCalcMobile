@@ -1,4 +1,4 @@
-// App.jsx - React Native Version with Summary Component
+// App.jsx - React Native Version with Real Logo Assets
 import React, { useState } from 'react';
 import {
   View,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Alert,
   Dimensions,
+  Image,
 } from 'react-native';
 import IncomeInput from './components/IncomeInput';
 import AddExpenseForm from './components/AddExpenseForm';
@@ -80,11 +81,23 @@ export default function App() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header - Gerçek Logo Assets */}
         <View style={styles.header}>
-          <Text style={styles.logo}>🚚</Text>
-          <Text style={styles.title}>CargoCalc</Text>
-          <Text style={styles.subtitle}>Nakliye Hesaplama Aracı</Text>
+          <View style={styles.logoContainer}>
+            <Image 
+              source={require('./public/apple-touch-icon.png')} 
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
+          
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>CargoCalc</Text>
+            <Text style={styles.subtitle}>Nakliyeciler için Hakediş ve Vergi Hesaplama Aracı</Text>
+            <Text style={styles.description}>
+              KDV indirimi, net kazanç ve sabit masraflar dahil tüm hesaplamaları akıllı şekilde yapın.
+            </Text>
+          </View>
         </View>
 
         {/* Hakediş Input - Real Component */}
@@ -163,9 +176,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   
-  // Header
+  // Header - Gerçek Logo Assets
   header: {
-    alignItems: 'center',
     backgroundColor: '#ffffff',
     padding: 24,
     borderRadius: 16,
@@ -176,20 +188,40 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  logo: {
-    fontSize: 48,
-    marginBottom: 8,
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoImage: {
+    width: 128,
+    height: 128,
+    marginBottom: 2,
+  },
+  
+  // Title Container
+  titleContainer: {
+    alignItems: 'center',
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1D4ED8',
-    marginBottom: 4,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 13,
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 8,
+    fontWeight: '600',
+  },
+  description: {
+    fontSize: 13,
     color: '#6B7280',
     textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: 16,
   },
   
   // Card
