@@ -14,7 +14,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
 const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
-  
+
   const handleDelete = (expenseId) => {
     Alert.alert(
       'Masrafı Sil',
@@ -43,33 +43,33 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
   };
 
   // Toplam hesaplamaları - Gizli masraflar ayrı
-  const visibleExpenses = Array.isArray(expenses) ? expenses.filter(expense => 
+  const visibleExpenses = Array.isArray(expenses) ? expenses.filter(expense =>
     !expense.isHiddenFromVisible && expense.name.toLowerCase() !== 'fatura'
   ) : [];
-  
-  const hiddenExpenses = Array.isArray(expenses) ? expenses.filter(expense => 
+
+  const hiddenExpenses = Array.isArray(expenses) ? expenses.filter(expense =>
     expense.isHiddenFromVisible || expense.name.toLowerCase() === 'fatura'
   ) : [];
 
   const totalExpenseAmount = visibleExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
- const totalExpenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
-  if (!expense.hasFatura) return sum;
+  const totalExpenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    if (!expense.hasFatura) return sum;
 
-  const rate = expense.kdvRate || 0;
-  const amount = expense.amount || 0;
-  const kdv = (amount * rate) / (100 + rate);
+    const rate = expense.kdvRate || 0;
+    const amount = expense.amount || 0;
+    const kdv = (amount * rate) / (100 + rate);
 
-  return sum + kdv;
-}, 0) : 0;
+    return sum + kdv;
+  }, 0) : 0;
 
   const totalFixedAmount = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => sum + (expense.monthlyAmount || 0), 0) : 0;
- const totalFixedKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
-  const rate = expense.kdvRate || 0;
-  const amount = expense.monthlyAmount || 0;
-  const kdv = (amount * rate) / (100 + rate);
+  const totalFixedKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
+    const rate = expense.kdvRate || 0;
+    const amount = expense.monthlyAmount || 0;
+    const kdv = (amount * rate) / (100 + rate);
 
-  return sum + kdv;
-}, 0) : 0;
+    return sum + kdv;
+  }, 0) : 0;
 
   const grandTotalAmount = totalExpenseAmount + totalFixedAmount;
   const grandTotalKdv = totalExpenseKdv + totalFixedKdv;
@@ -98,15 +98,15 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
         </View>
       ) : (
         <View style={styles.expensesList}>
-          
+
           {/* Elle Eklenen Masraflar - Görünür */}
           {visibleExpenses && visibleExpenses.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Elle Eklenen Masraflar:</Text>
-              
+
               {visibleExpenses.map((expense) => {
                 const kdvAmount = expense.hasFatura ? ((expense.amount || 0) * (expense.kdvRate || 0)) / 100 : 0;
-                
+
                 return (
                   <View key={expense.id} style={styles.expenseItem}>
                     <View style={styles.expenseInfo}>
@@ -124,7 +124,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                           </Text>
                         </View>
                       </View>
-                      
+
                       <Text style={styles.expenseAmount}>{format(expense.amount)} ₺</Text>
                       {expense.hasFatura && expense.kdvRate > 0 && (
                         <Text style={styles.expenseKdv}>
@@ -137,7 +137,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                         </Text>
                       )}
                     </View>
-                    
+
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDelete(expense.id)}
@@ -155,10 +155,10 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
           {hiddenExpenses && hiddenExpenses.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>🔒 Gizli Masraflar (Sadece Vergi Hesabında):</Text>
-              
+
               {hiddenExpenses.map((expense) => {
                 const kdvAmount = expense.hasFatura ? ((expense.amount || 0) * (expense.kdvRate || 0)) / 100 : 0;
-                
+
                 return (
                   <View key={expense.id} style={[styles.expenseItem, styles.hiddenExpenseItem]}>
                     <View style={styles.expenseInfo}>
@@ -168,7 +168,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                           <Text style={styles.hiddenBadgeText}>🔒 Gizli</Text>
                         </View>
                       </View>
-                      
+
                       <Text style={styles.expenseAmount}>{format(expense.amount)} ₺</Text>
                       {expense.hasFatura && expense.kdvRate > 0 && (
                         <Text style={styles.expenseKdv}>
@@ -179,7 +179,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                         Görünür masraflara dahil değil, sadece vergi hesabında kullanılıyor
                       </Text>
                     </View>
-                    
+
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDelete(expense.id)}
@@ -197,10 +197,10 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
           {fixedExpenses && fixedExpenses.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Sabit Giderler (Aylık):</Text>
-              
+
               {fixedExpenses.map((expense, idx) => {
                 const kdvAmount = ((expense.monthlyAmount || 0) * (expense.kdvRate || 0)) / 100;
-                
+
                 return (
                   <View key={`fixed-${idx}`} style={[styles.expenseItem, styles.fixedExpenseItem]}>
                     <View style={styles.expenseInfo}>
@@ -212,7 +212,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                         </Text>
                       )}
                     </View>
-                    
+
                     <View style={styles.fixedBadge}>
                       <Text style={styles.fixedBadgeText}>Sabit</Text>
                     </View>
@@ -228,19 +228,19 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
               <Text style={styles.totalLabel}>Ara Toplam:</Text>
               <Text style={styles.totalValue}>{format(grandTotalAmount)} ₺</Text>
             </View>
-            
+
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Toplam KDV:</Text>
               <Text style={[styles.totalValue, styles.kdvValue]}>{format(grandTotalKdv)} ₺</Text>
             </View>
-            
+
             <View style={styles.divider} />
-            
+
             <View style={styles.totalRow}>
               <Text style={styles.grandTotalLabel}>Toplam Aylık Masraf:</Text>
               <Text style={styles.grandTotalValue}>{format(grandTotalAmount)} ₺</Text>
             </View>
-            
+
             <View style={styles.totalRow}>
               <Text style={styles.grandTotalLabel}>Toplam İndirilecek KDV:</Text>
               <Text style={[styles.grandTotalValue, styles.kdvValue]}>{format(grandTotalKdv)} ₺</Text>
@@ -261,7 +261,7 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
           {/* Debug Info */}
           <View style={styles.debugContainer}>
             <Text style={styles.debugText}>
-              Debug: Görünür={visibleExpenses?.length || 0}, Gizli={hiddenExpenses?.length || 0}, 
+              Debug: Görünür={visibleExpenses?.length || 0}, Gizli={hiddenExpenses?.length || 0},
               Sabit={fixedExpenses?.length || 0}, Toplam={format(grandTotalAmount)}₺, KDV={format(grandTotalKdv)}₺
             </Text>
           </View>
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  
+
   // Header
   header: {
     flexDirection: 'row',
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  
+
   // Empty State
   emptyState: {
     alignItems: 'center',
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
   },
-  
+
   // Expenses List
   expensesList: {
     // maxHeight kaldırıldı - artık scroll yok
@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 12,
   },
-  
+
   // Expense Item
   expenseItem: {
     flexDirection: 'row',
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
   },
-  
+
   // Fatura Status
   faturaStatus: {
     paddingHorizontal: 8,
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   faturaStatusTextInactive: {
     color: '#991B1B',
   },
-  
+
   expenseAmount: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: 4,
   },
-  
+
   // Hidden Badge
   hiddenBadge: {
     backgroundColor: '#7C3AED',
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  
+
   // Delete Button
   deleteButton: {
     backgroundColor: '#EF4444',
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  
+
   // Fixed Badge
   fixedBadge: {
     backgroundColor: '#D97706',
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  
+
   // Total Section
   totalSection: {
     backgroundColor: '#F3F4F6',
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1D5DB',
     marginVertical: 8,
   },
-  
+
   // Tip Container
   tipContainer: {
     flexDirection: 'row',
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
     color: '#1E40AF',
     lineHeight: 16,
   },
-  
+
   // Debug Container
   debugContainer: {
     backgroundColor: '#F0F9FF',

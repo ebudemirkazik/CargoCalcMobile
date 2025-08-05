@@ -21,6 +21,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     name: '',
     yearlyAmount: '',
     kdvRate: 20,
+    hasFatura: true,
   });
 
   // MockStorage'dan yükleme
@@ -83,6 +84,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       name: newExpense.name.trim(),
       yearlyAmount: parseFloat(newExpense.yearlyAmount),
       kdvRate: parseFloat(newExpense.kdvRate),
+      
     };
 
     const updated = [...fixedExpenses, expense];
