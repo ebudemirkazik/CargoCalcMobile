@@ -42,8 +42,9 @@ export default function App() {
     setExpenses(prev => prev.filter(expense => expense.id !== id));
   };
 
-  // Sabit giderleri güncelle
+  // Sabit giderleri güncelle - Artık otomatik çağrılmayacak
   const handleFixedExpensesChange = (monthlyFixedExpenses) => {
+    console.log('handleFixedExpensesChange çağrıldı (artık otomatik değil):', monthlyFixedExpenses);
     setFixedExpenses(monthlyFixedExpenses);
   };
 

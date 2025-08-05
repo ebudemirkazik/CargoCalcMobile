@@ -34,11 +34,11 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       const expenses = stored ? JSON.parse(stored) : [];
       console.log('FixedExpenses yüklendi:', expenses);
       setFixedExpenses(expenses);
-      calculateMonthlyExpenses(expenses);
+      // calculateMonthlyExpenses(expenses); // Bu satırı kaldırdık - otomatik eklemesin
     } catch (error) {
       console.error('FixedExpenses yükleme hatası:', error);
       setFixedExpenses([]);
-      calculateMonthlyExpenses([]);
+      // calculateMonthlyExpenses([]); // Bu satırı da kaldırdık
     }
   };
 
@@ -51,7 +51,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     }
   };
 
-  // Aylık masrafları hesapla ve parent'a gönder
+  // Aylık masrafları hesapla ve parent'a gönder - SADECE MANUEL EKLENDİĞİNDE
   const calculateMonthlyExpenses = (expenses) => {
     const monthlyExpenses = expenses.map((expense) => ({
       name: expense.name,
@@ -62,10 +62,13 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
 
     console.log('Hesaplanan monthly expenses:', monthlyExpenses);
 
-    // Parent'a sadece hesaplama için gönder
-    if (onFixedExpensesChange) {
-      onFixedExpensesChange(monthlyExpenses);
-    }
+    // Bu fonksiyon artık sadece manuel eklemede kullanılacak
+    // Parent'a otomatik göndermesin
+    // if (onFixedExpensesChange) {
+    //   onFixedExpensesChange(monthlyExpenses);
+    // }
+    
+    return monthlyExpenses;
   };
 
   // Yeni sabit gider ekle
@@ -85,7 +88,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     const updated = [...fixedExpenses, expense];
     setFixedExpenses(updated);
     await saveFixedExpenses(updated);
-    calculateMonthlyExpenses(updated);
+    // calculateMonthlyExpenses(updated); // Kaldırdık - otomatik eklemesin
 
     // Form'u temizle
     setNewExpense({ name: '', yearlyAmount: '', kdvRate: 20 });
@@ -106,7 +109,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
             const updated = fixedExpenses.filter((expense) => expense.id !== id);
             setFixedExpenses(updated);
             await saveFixedExpenses(updated);
-            calculateMonthlyExpenses(updated);
+            // calculateMonthlyExpenses(updated); // Kaldırdık - otomatik eklemesin
             Alert.alert('Başarılı!', 'Sabit gider silindi!');
           },
         },
