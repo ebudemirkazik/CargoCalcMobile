@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    padding: 16,
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
 
   // Progress Summary
   progressSummary: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   progressText: {
     fontSize: 14,
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   // Next Button
   nextButton: {
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   nextButtonEnabled: {

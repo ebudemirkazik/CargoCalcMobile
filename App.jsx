@@ -24,18 +24,9 @@ export const useAppContext = () => {
   return context;
 };
 
-// Tab Sayfaları - DataInputPage'i import edecek
+// Tab Sayfaları - Real Components
 import DataInputPage from './pages/DataInputPage';
-
-const ResultsPage = () => (
-  <View style={styles.page}>
-    <Text style={styles.pageTitle}>📊 Hesaplama & Sonuçlar</Text>
-    <Text style={styles.pageDesc}>Vergi hesaplamaları ve görsel analiz</Text>
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>Summary + ExpenseDonutChart + Kaydet Butonu</Text>
-    </View>
-  </View>
-);
+import ResultsPage from './pages/ResultsPage';
 
 const HistoryPage = () => (
   <View style={styles.page}>
@@ -387,14 +378,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // Tab Bar
+  // Tab Bar - Kompakt
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingBottom: 8,
-    paddingTop: 8,
+    paddingBottom: 6,
+    paddingTop: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -404,23 +395,23 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 4,
   },
   tabButtonActive: {
     // Active state handled by individual elements
   },
   tabIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: 20, // 24 → 20
+    marginBottom: 2, // 4 → 2
     opacity: 0.6,
   },
   tabIconActive: {
     opacity: 1,
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.05 }], // 1.1 → 1.05
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 10, // 12 → 10
     color: '#6B7280',
     fontWeight: '500',
     textAlign: 'center',
@@ -430,10 +421,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Progress Bar
+  // Progress Bar - Kompakt
   progressContainer: {
     backgroundColor: '#ffffff',
-    paddingVertical: 8,
+    paddingVertical: 4, // 8 → 4
     alignItems: 'center',
   },
   progressBar: {
@@ -441,15 +432,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6, // 8 → 6
+    height: 6, // 8 → 6
+    borderRadius: 3, // 4 → 3
     backgroundColor: '#D1D5DB',
-    marginHorizontal: 4,
+    marginHorizontal: 3, // 4 → 3
   },
   progressDotActive: {
     backgroundColor: '#3B82F6',
-    transform: [{ scale: 1.2 }],
+    transform: [{ scale: 1.15 }], // 1.2 → 1.15
   },
 
   // Landing Page
