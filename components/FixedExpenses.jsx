@@ -42,6 +42,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       // calculateMonthlyExpenses([]); // Bu satırı da kaldırdık
     }
   };
+  
 
   const saveFixedExpenses = async (expenses) => {
     try {
@@ -59,6 +60,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       monthlyAmount: Math.round(expense.yearlyAmount / 12), // Aylık tutar
       kdvRate: expense.kdvRate,
       isFixed: true, // Sabit gider olduğunu belirt
+      hasFatura: true,
     }));
 
     console.log('Hesaplanan monthly expenses:', monthlyExpenses);
@@ -127,6 +129,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       name: expense.name,
       amount: monthlyAmount,
       kdvRate: expense.kdvRate,
+      hasFatura: true,
     };
 
     if (onAddToManualExpenses) {
