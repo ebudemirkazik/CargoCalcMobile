@@ -19,18 +19,41 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
   const totalFixedExpenses = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => sum + (expense.monthlyAmount || 0), 0) : 0;
   const allExpenses = totalExpenses + totalFixedExpenses;
 
-  // KDV Hesaplamaları - Null Check'lerle güvenli
+  // KDV Hesaplamaları - Sadece faturalı masraflar için
   const expenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    // Sadece fatura varsa KDV indirilebilir
+    if (!expense.hasFatura) return sum;
+    
     const kdvAmount = ((expense.amount || 0) * (expense.kdvRate || 0)) / 100;
     return sum + kdvAmount;
   }, 0) : 0;
 
   const fixedExpenseKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
+    // Sabit giderler her zaman faturalı kabul ediliyor
     const kdvAmount = ((expense.monthlyAmount || 0) * (expense.kdvRate || 0)) / 100;
     return sum + kdvAmount;
   }, 0) : 0;
 
   const toplamIndirilecekKdv = expenseKdv + fixedExpenseKdv;
+
+  // Gelir Vergisi Hesaplama - Sadece faturalı masraflar matrahtan düşülebilir
+  const faturaliMasraflar = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    // Sadece fatura varsa gelir vergisi matrahından düşülebilir
+    if (!expense.hasFatura) return sum;
+    return sum + (expense.amount || 0);
+  }, 0) : 0;
+
+  const indirilebilirMasraflar = faturaliMasraflar + totalFixedExpenses; // Sabit giderler her zaman indirilebilir
+  
+  console.log('Vergi hesaplamaları:', {
+    totalExpenses: allExpenses,
+    faturaliMasraflar,
+    totalFixedExpenses,
+    indirilebilirMasraflar,
+    expenseKdv,
+    fixedExpenseKdv,
+    toplamIndirilecekKdv
+  });
 
   // Gelir KDV'si (%20)
   const gelirKdvsi = (income || 0) * 0.20;
@@ -38,8 +61,8 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
   // Gelir Vergisi Hesaplama (KDV hariç gelir üzerinden)
   const kdvHaricGelir = (income || 0) / 1.20;
-  const kdvHaricGiderler = allExpenses / 1.20;
-  const vergiyeTabiGelir = kdvHaricGelir - kdvHaricGiderler;
+  const kdvHaricIndirilebilirGiderler = indirilebilirMasraflar / 1.20; // Sadece faturalı masraflar
+  const vergiyeTabiGelir = kdvHaricGelir - kdvHaricIndirilebilirGiderler;
 
   let gelirVergisi = 0;
   if (vergiyeTabiGelir > 0) {
@@ -79,6 +102,8 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
         netKazanc: netKazanc,
         vergiyeTabiGelir: vergiyeTabiGelir,
         kdvHaricGelir: kdvHaricGelir,
+        faturaliMasraflar: faturaliMasraflar,
+        indirilebilirMasraflar: indirilebilirMasraflar,
         timestamp: Date.now(),
       };
 
@@ -137,7 +162,9 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
       {/* Vergi Detayları */}
       <View style={styles.taxCard}>
         <Text style={styles.taxTitle}>Vergi Detayları</Text>
-        
+        <Text style={[styles.taxTotal, styles.negative]}>
+          -{format(toplamVergi)} ₺
+        </Text>
 
         <View style={styles.taxDetails}>
           <View style={styles.taxRow}>
@@ -164,7 +191,14 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
           <View style={styles.taxRow}>
             <Text style={styles.taxLabel}>Gelir Vergisi Matrahı:</Text>
             <Text style={styles.taxValue}>
-              {format(vergiyeTabiGelir)} ₺
+              {format(Math.max(0, vergiyeTabiGelir))} ₺
+            </Text>
+          </View>
+
+          <View style={styles.taxRow}>
+            <Text style={styles.taxLabel}>İndirilebilir Masraflar:</Text>
+            <Text style={[styles.taxValue, styles.positive]}>
+              {format(indirilebilirMasraflar)} ₺
             </Text>
           </View>
 

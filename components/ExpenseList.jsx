@@ -89,16 +89,35 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
               <Text style={styles.sectionTitle}>Elle Eklenen Masraflar:</Text>
               
               {expenses.map((expense) => {
-                const kdvAmount = ((expense.amount || 0) * (expense.kdvRate || 0)) / 100;
+                const kdvAmount = expense.hasFatura ? ((expense.amount || 0) * (expense.kdvRate || 0)) / 100 : 0;
                 
                 return (
                   <View key={expense.id} style={styles.expenseItem}>
                     <View style={styles.expenseInfo}>
-                      <Text style={styles.expenseName}>{expense.name}</Text>
+                      <View style={styles.expenseHeader}>
+                        <Text style={styles.expenseName}>{expense.name}</Text>
+                        <View style={[
+                          styles.faturaStatus,
+                          expense.hasFatura ? styles.faturaStatusActive : styles.faturaStatusInactive
+                        ]}>
+                          <Text style={[
+                            styles.faturaStatusText,
+                            expense.hasFatura ? styles.faturaStatusTextActive : styles.faturaStatusTextInactive
+                          ]}>
+                            {expense.hasFatura ? '🧾 Faturalı' : '💰 Faturasız'}
+                          </Text>
+                        </View>
+                      </View>
+                      
                       <Text style={styles.expenseAmount}>{format(expense.amount)} ₺</Text>
-                      {expense.kdvRate > 0 && (
+                      {expense.hasFatura && expense.kdvRate > 0 && (
                         <Text style={styles.expenseKdv}>
-                          KDV %{expense.kdvRate} = {format(kdvAmount)} ₺
+                          KDV %{expense.kdvRate} = {format(kdvAmount)} ₺ (İndirilecek)
+                        </Text>
+                      )}
+                      {!expense.hasFatura && (
+                        <Text style={styles.expenseNoKdv}>
+                          KDV indirimi yok
                         </Text>
                       )}
                     </View>
@@ -288,12 +307,43 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  expenseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   expenseName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 4,
+    flex: 1,
   },
+  
+  // Fatura Status
+  faturaStatus: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  faturaStatusActive: {
+    backgroundColor: '#D1FAE5',
+  },
+  faturaStatusInactive: {
+    backgroundColor: '#FEE2E2',
+  },
+  faturaStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  faturaStatusTextActive: {
+    color: '#065F46',
+  },
+  faturaStatusTextInactive: {
+    color: '#991B1B',
+  },
+  
   expenseAmount: {
     fontSize: 14,
     fontWeight: 'bold',
@@ -303,6 +353,10 @@ const styles = StyleSheet.create({
   expenseKdv: {
     fontSize: 12,
     color: '#059669',
+  },
+  expenseNoKdv: {
+    fontSize: 12,
+    color: '#DC2626',
   },
   
   // Delete Button

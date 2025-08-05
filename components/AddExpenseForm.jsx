@@ -1,4 +1,4 @@
-// components/AddExpenseForm.jsx - React Native Version (Fixed)
+// AddExpenseForm.jsx - React Native Version with Fatura Feature
 import React, { useState } from 'react';
 import {
   View,
@@ -6,582 +6,441 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   Dimensions,
 } from 'react-native';
-// Picker import'unu kaldırdık - custom buttons kullanacağız
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
-function AddExpenseForm({ onAddExpense }) {
+const AddExpenseForm = ({ onAddExpense }) => {
   const [expense, setExpense] = useState({
     name: '',
     amount: '',
     kdvRate: 20,
+    hasFatura: true, // Varsayılan olarak fatura var
   });
 
-  const [errors, setErrors] = useState({});
-
-  // Hızlı masraf şablonları
-  const quickExpenses = [
-    { name: 'Yakıt', kdvRate: 20, icon: '⛽' },
-    { name: 'Yol', kdvRate: 20, icon: '🛣️' },
-    { name: 'Bakım', kdvRate: 20, icon: '🔧' },
-    { name: 'Yemek', kdvRate: 10, icon: '🍽️' },
-    { name: 'Sigorta', kdvRate: 20, icon: '🛡️' },
-    { name: 'Lastik', kdvRate: 20, icon: '🔘' },
-  ];
-
-  // Masraf adı validasyonu - sadece harfler, boşluk ve Türkçe karakterler
-  const validateName = (name) => {
-    const nameRegex = /^[a-zA-ZğüşıöçĞÜŞİÖÇ\s]+$/;
-    if (!name.trim()) {
-      return 'Masraf adı boş olamaz';
-    }
-    if (name.trim().length < 2) {
-      return 'Masraf adı en az 2 karakter olmalı';
-    }
-    if (!nameRegex.test(name.trim())) {
-      return 'Masraf adında sadece harfler kullanılabilir';
-    }
-    return null;
-  };
-
-  // Tutar validasyonu - sadece sayılar ve ondalık
-  const validateAmount = (amount) => {
-    if (!amount) {
-      return 'Tutar boş olamaz';
-    }
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount)) {
-      return 'Geçerli bir sayı giriniz';
-    }
-    if (numAmount <= 0) {
-      return 'Tutar 0\'dan büyük olmalı';
-    }
-    if (numAmount > 1000000) {
-      return 'Tutar çok büyük (max: 1.000.000₺)';
-    }
-    return null;
-  };
-
-  // Input değişiklikleri
-  const handleNameChange = (value) => {
-    setExpense({ ...expense, name: value });
-
-    // Gerçek zamanlı validasyon
-    const error = validateName(value);
-    setErrors({ ...errors, name: error });
-  };
-
-  const handleAmountChange = (value) => {
-    // Sadece sayı, nokta ve virgül kabul et
-    value = value.replace(/[^0-9.,]/g, '');
-    // Virgülü noktaya çevir
-    value = value.replace(',', '.');
-    // Birden fazla nokta varsa sadece ilkini bırak
-    const parts = value.split('.');
-    if (parts.length > 2) {
-      value = parts[0] + '.' + parts.slice(1).join('');
-    }
-
-    setExpense({ ...expense, amount: value });
-
-    // Gerçek zamanlı validasyon
-    const error = validateAmount(value);
-    setErrors({ ...errors, amount: error });
-  };
-
-  // Hızlı masraf seçimi - KDV rate'i de güncelle
-  const handleQuickExpense = (quickExpense) => {
-    setExpense({
-      name: quickExpense.name,
-      amount: expense.amount, // Mevcut tutarı koru
-      kdvRate: quickExpense.kdvRate, // KDV oranını güncelle
-    });
-
-    // Name error'ını temizle
-    setErrors({ ...errors, name: null });
-  };
-
   const handleSubmit = () => {
-    // Tüm alanları valide et
-    const nameError = validateName(expense.name);
-    const amountError = validateAmount(expense.amount);
-
-    if (nameError || amountError) {
-      setErrors({
-        name: nameError,
-        amount: amountError,
-      });
+    if (!expense.name.trim()) {
+      Alert.alert('Uyarı', 'Lütfen masraf adını girin!');
       return;
     }
 
-    // Temiz veri oluştur
-    const cleanExpense = {
+    if (!expense.amount || isNaN(parseFloat(expense.amount))) {
+      Alert.alert('Uyarı', 'Lütfen geçerli bir tutar girin!');
+      return;
+    }
+
+    const newExpense = {
       name: expense.name.trim(),
       amount: parseFloat(expense.amount),
       kdvRate: parseFloat(expense.kdvRate),
+      hasFatura: expense.hasFatura,
     };
 
-    onAddExpense(cleanExpense);
+    console.log('Yeni masraf ekleniyor:', newExpense);
 
-    // Toast benzeri Alert göster
-    Alert.alert(
-      'Başarılı! ✅',
-      `${cleanExpense.name} masrafı eklendi!\nTutar: ${format(cleanExpense.amount)} ₺\nKDV: %${cleanExpense.kdvRate}`,
-      [{ text: 'Tamam', style: 'default' }]
-    );
-
-    // Formu temizle
-    setExpense({ name: '', amount: '', kdvRate: 20 });
-    setErrors({});
-  };
-
-  const format = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
-
-  const getInputStyle = (hasError) => {
-    if (hasError) {
-      return [styles.input, styles.inputError];
+    if (onAddExpense) {
+      onAddExpense(newExpense);
     }
-    return [styles.input, styles.inputDefault];
+
+    // Form'u temizle
+    setExpense({
+      name: '',
+      amount: '',
+      kdvRate: 20,
+      hasFatura: true,
+    });
+
+    Alert.alert('Başarılı!', 'Masraf başarıyla eklendi!');
   };
 
-  const isFormValid = expense.name && expense.amount && !errors.name && !errors.amount;
+  const format = (amount) => {
+    if (!amount || isNaN(amount)) return '0';
+    return parseFloat(amount).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+  };
 
-  // KDV hesaplama fonksiyonu
+  // KDV Seçenekleri
+  const kdvOptions = [
+    { value: 0, label: '%0', desc: 'Muaf', color: '#6B7280' },
+    { value: 1, label: '%1', desc: 'Özel', color: '#8B5CF6' },
+    { value: 10, label: '%10', desc: 'İndirimli', color: '#F59E0B' },
+    { value: 20, label: '%20', desc: 'Genel', color: '#EF4444' },
+  ];
+
+  // KDV Hesaplama (fatura durumuna göre)
   const calculateKdv = () => {
-    if (!expense.amount || isNaN(parseFloat(expense.amount)) || expense.kdvRate <= 0) {
-      return null;
-    }
-
-    const amount = parseFloat(expense.amount);
-    const kdvRate = parseFloat(expense.kdvRate);
+    const amount = parseFloat(expense.amount) || 0;
+    if (!expense.hasFatura || expense.kdvRate === 0) return 0;
     
-    // KDV tutarı hesaplama (dahil KDV'den KDV payını çıkarma)
-    const kdvAmount = amount * (kdvRate / (100 + kdvRate));
-    const netAmount = amount - kdvAmount;
-
-    return {
-      kdvAmount,
-      netAmount,
-      totalAmount: amount
-    };
+    // Fatura varsa: KDV dahil tutardan KDV'yi çıkar
+    return (amount * expense.kdvRate) / (100 + expense.kdvRate);
   };
 
-  const kdvCalculation = calculateKdv();
+  const kdvAmount = calculateKdv();
+  const netAmount = (parseFloat(expense.amount) || 0) - kdvAmount;
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        {/* Header */}
-        <Text style={styles.headerTitle}>Yeni Masraf Ekle</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>💸 Masraf Ekle</Text>
 
-        {/* Hızlı Masraf Seçimi */}
-        <View style={styles.quickSelectionSection}>
-          <Text style={styles.sectionTitle}>Hızlı Seçim:</Text>
-          <View style={styles.quickButtonGrid}>
-            {quickExpenses.map((quick) => (
+      {/* Masraf Adı */}
+      <View style={styles.fieldContainer}>
+        <Text style={styles.fieldLabel}>Masraf Adı</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Örn: Yakıt, Yol Ücreti, Bakım"
+          value={expense.name}
+          onChangeText={(value) => setExpense({ ...expense, name: value })}
+          placeholderTextColor="#9CA3AF"
+          returnKeyType="next"
+        />
+      </View>
+
+      {/* Tutar */}
+      <View style={styles.fieldContainer}>
+        <Text style={styles.fieldLabel}>Tutar (₺)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Örn: 500"
+          value={expense.amount}
+          onChangeText={(value) => setExpense({ ...expense, amount: value })}
+          placeholderTextColor="#9CA3AF"
+          keyboardType="numeric"
+          returnKeyType="done"
+        />
+      </View>
+
+      {/* Fatura Durumu */}
+      <View style={styles.fieldContainer}>
+        <Text style={styles.fieldLabel}>Fatura Durumu</Text>
+        <View style={styles.faturaButtonContainer}>
+          <TouchableOpacity
+            style={[
+              styles.faturaButton,
+              expense.hasFatura ? styles.faturaButtonActive : styles.faturaButtonInactive
+            ]}
+            onPress={() => setExpense({ ...expense, hasFatura: true })}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.faturaButtonText,
+              expense.hasFatura ? styles.faturaButtonTextActive : styles.faturaButtonTextInactive
+            ]}>
+              🧾 Fatura Var
+            </Text>
+            <Text style={[
+              styles.faturaButtonDesc,
+              expense.hasFatura ? styles.faturaButtonDescActive : styles.faturaButtonDescInactive
+            ]}>
+              KDV indirilebilir
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.faturaButton,
+              !expense.hasFatura ? styles.faturaButtonActive : styles.faturaButtonInactive
+            ]}
+            onPress={() => setExpense({ ...expense, hasFatura: false, kdvRate: 0 })}
+            activeOpacity={0.7}
+          >
+            <Text style={[
+              styles.faturaButtonText,
+              !expense.hasFatura ? styles.faturaButtonTextActive : styles.faturaButtonTextInactive
+            ]}>
+              💰 Fatura Yok
+            </Text>
+            <Text style={[
+              styles.faturaButtonDesc,
+              !expense.hasFatura ? styles.faturaButtonDescActive : styles.faturaButtonDescInactive
+            ]}>
+              KDV indirilemez
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* KDV Oranı - Sadece fatura varsa */}
+      {expense.hasFatura && (
+        <View style={styles.fieldContainer}>
+          <Text style={styles.fieldLabel}>KDV Oranı</Text>
+          <View style={styles.kdvGrid}>
+            {kdvOptions.map((kdvOption) => (
               <TouchableOpacity
-                key={quick.name}
-                onPress={() => handleQuickExpense(quick)}
+                key={kdvOption.value}
                 style={[
-                  styles.quickButton,
-                  expense.name === quick.name ? styles.quickButtonSelected : styles.quickButtonDefault
+                  styles.kdvButton,
+                  expense.kdvRate === kdvOption.value ? styles.kdvButtonActive : styles.kdvButtonInactive,
+                  { borderColor: kdvOption.color }
                 ]}
+                onPress={() => setExpense({ ...expense, kdvRate: kdvOption.value })}
                 activeOpacity={0.7}
               >
-                <Text style={styles.quickButtonIcon}>{quick.icon}</Text>
                 <Text style={[
-                  styles.quickButtonText,
-                  expense.name === quick.name ? styles.quickButtonTextSelected : styles.quickButtonTextDefault
+                  styles.kdvButtonLabel,
+                  expense.kdvRate === kdvOption.value ? { color: kdvOption.color } : styles.kdvButtonLabelInactive
                 ]}>
-                  {quick.name}
+                  KDV {kdvOption.label}
                 </Text>
-                <Text style={styles.quickButtonKdv}>KDV %{quick.kdvRate}</Text>
+                <Text style={[
+                  styles.kdvButtonDesc,
+                  expense.kdvRate === kdvOption.value ? { color: kdvOption.color } : styles.kdvButtonDescInactive
+                ]}>
+                  {kdvOption.desc}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
+      )}
 
-        {/* Form Fields */}
-        <View style={styles.formSection}>
-          {/* Masraf Adı */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Masraf Adı</Text>
-            <TextInput
-              style={getInputStyle(errors.name)}
-              placeholder="Örn: Yakıt, Bakım, Yol"
-              value={expense.name}
-              onChangeText={handleNameChange}
-              placeholderTextColor="#9CA3AF"
-              maxLength={50}
-              returnKeyType="next"
-            />
-            {errors.name && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorIcon}>⚠️</Text>
-                <Text style={styles.errorText}>{errors.name}</Text>
+      {/* Hesaplama Önizlemesi */}
+      {expense.amount && !isNaN(parseFloat(expense.amount)) && (
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>📊 Hesaplama Önizlemesi:</Text>
+          <View style={styles.previewContent}>
+            <View style={styles.previewRow}>
+              <Text style={styles.previewLabel}>Girilen Tutar:</Text>
+              <Text style={styles.previewValue}>{format(expense.amount)} ₺</Text>
+            </View>
+            
+            {expense.hasFatura && expense.kdvRate > 0 ? (
+              <>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>KDV Tutarı (İndirilecek):</Text>
+                  <Text style={[styles.previewValue, styles.kdvValue]}>
+                    {format(kdvAmount)} ₺
+                  </Text>
+                </View>
+                <View style={styles.previewRow}>
+                  <Text style={styles.previewLabel}>Net Masraf:</Text>
+                  <Text style={styles.previewValue}>{format(netAmount)} ₺</Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.previewRow}>
+                <Text style={styles.previewLabel}>Net Masraf:</Text>
+                <Text style={styles.previewValue}>{format(expense.amount)} ₺</Text>
               </View>
             )}
-          </View>
-
-          {/* Tutar */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Tutar (₺)</Text>
-            <TextInput
-              style={getInputStyle(errors.amount)}
-              placeholder="Örn: 1500"
-              value={expense.amount}
-              onChangeText={handleAmountChange}
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-              returnKeyType="done"
-            />
-            {errors.amount && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorIcon}>⚠️</Text>
-                <Text style={styles.errorText}>{errors.amount}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* KDV Oranı - Custom Button Selector */}
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>KDV Oranı</Text>
-            <View style={styles.kdvButtonGrid}>
-              {[
-                { value: 0, label: '%0', desc: 'Muaf' },
-                { value: 1, label: '%1', desc: 'Özel' },
-                { value: 10, label: '%10', desc: 'İndirimli' },
-                { value: 20, label: '%20', desc: 'Genel' },
-              ].map((kdvOption) => (
-                <TouchableOpacity
-                  key={kdvOption.value}
-                  onPress={() => setExpense({ ...expense, kdvRate: kdvOption.value })}
-                  style={[
-                    styles.kdvButton,
-                    expense.kdvRate === kdvOption.value ? styles.kdvButtonSelected : styles.kdvButtonDefault
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[
-                    styles.kdvButtonLabel,
-                    expense.kdvRate === kdvOption.value ? styles.kdvButtonLabelSelected : styles.kdvButtonLabelDefault
-                  ]}>
-                    KDV {kdvOption.label}
-                  </Text>
-                  <Text style={[
-                    styles.kdvButtonDesc,
-                    expense.kdvRate === kdvOption.value ? styles.kdvButtonDescSelected : styles.kdvButtonDescDefault
-                  ]}>
-                    {kdvOption.desc}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* KDV Hesaplama Önizleme */}
-          {kdvCalculation && (
-            <View style={styles.previewContainer}>
-              <View style={styles.previewHeader}>
-                <Text style={styles.previewIcon}>🧮</Text>
-                <Text style={styles.previewTitle}>KDV Hesaplaması:</Text>
-              </View>
-              <View style={styles.previewContent}>
-                <Text style={styles.previewText}>
-                  • KDV Tutarı:{' '}
-                  <Text style={styles.previewValue}>
-                    {format(kdvCalculation.kdvAmount)} ₺
-                  </Text>
-                </Text>
-                <Text style={styles.previewText}>
-                  • Net Tutar:{' '}
-                  <Text style={styles.previewValue}>
-                    {format(kdvCalculation.netAmount)} ₺
-                  </Text>
-                </Text>
-                <View style={styles.previewDivider} />
-                <Text style={styles.previewTextBold}>
-                  • Toplam Masraf:{' '}
-                  <Text style={styles.previewValueBold}>
-                    {format(kdvCalculation.totalAmount)} ₺
-                  </Text>
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={!isFormValid}
-            style={[
-              styles.submitButton,
-              isFormValid ? styles.submitButtonEnabled : styles.submitButtonDisabled
-            ]}
-            activeOpacity={isFormValid ? 0.8 : 1}
-          >
-            <View style={styles.submitButtonContent}>
-              <Text style={styles.submitButtonIcon}>
-                {isFormValid ? '➕' : '⚠️'}
-              </Text>
-              <Text style={[
-                styles.submitButtonText,
-                isFormValid ? styles.submitButtonTextEnabled : styles.submitButtonTextDisabled
-              ]}>
-                {isFormValid ? 'Masrafı Ekle' : 'Bilgileri Tamamlayın'}
+            
+            <View style={styles.previewNote}>
+              <Text style={styles.previewNoteText}>
+                {expense.hasFatura 
+                  ? `✅ Fatura var - KDV ${expense.kdvRate > 0 ? 'indirilebilir' : 'muaf'}`
+                  : '❌ Fatura yok - KDV indirilemez'
+                }
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </View>
+      )}
 
-        {/* Mobil İpucu */}
-        {!isTablet && (
-          <View style={styles.tipContainer}>
-            <Text style={styles.tipIcon}>💡</Text>
-            <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>İpucu:</Text>
-              <Text style={styles.tipText}>
-                Hızlı seçim butonlarını kullanarak yaygın masrafları kolayca
-                ekleyebilirsiniz. Her buton otomatik olarak uygun KDV oranını seçer.
-              </Text>
-            </View>
-          </View>
-        )}
+      {/* Submit Button */}
+      <TouchableOpacity
+        style={[
+          styles.submitButton,
+          (!expense.name.trim() || !expense.amount) ? styles.submitButtonDisabled : styles.submitButtonEnabled
+        ]}
+        onPress={handleSubmit}
+        disabled={!expense.name.trim() || !expense.amount}
+        activeOpacity={(!expense.name.trim() || !expense.amount) ? 1 : 0.8}
+      >
+        <Text style={[
+          styles.submitButtonText,
+          (!expense.name.trim() || !expense.amount) ? styles.submitButtonTextDisabled : styles.submitButtonTextEnabled
+        ]}>
+          Masraf Ekle
+        </Text>
+      </TouchableOpacity>
+
+      {/* Bilgilendirme */}
+      <View style={styles.infoContainer}>
+        <Text style={styles.infoIcon}>💡</Text>
+        <View style={styles.infoContent}>
+          <Text style={styles.infoTitle}>Fatura Kuralları:</Text>
+          <Text style={styles.infoText}>
+            • <Text style={styles.infoBold}>Fatura Var:</Text> KDV dahil tutar girin, KDV otomatik hesaplanır{'\n'}
+            • <Text style={styles.infoBold}>Fatura Yok:</Text> Net tutarı girin, KDV indirimi yoktur
+          </Text>
+        </View>
       </View>
-    </ScrollView>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: isTablet ? 24 : 20,
-    margin: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    shadowRadius: 4,
+    elevation: 3,
   },
-
-  // Header
-  headerTitle: {
-    fontSize: isTablet ? 20 : 18,
+  title: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#374151',
-    marginBottom: 24,
+    marginBottom: 16,
+    textAlign: 'center',
   },
 
-  // Quick Selection
-  quickSelectionSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: isTablet ? 16 : 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  quickButtonGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-  },
-  quickButton: {
-    borderWidth: 2,
-    borderRadius: 12,
-    padding: isTablet ? 12 : 16,
-    margin: 6,
-    alignItems: 'center',
-    minWidth: isTablet ? '30%' : '45%',
-    maxWidth: isTablet ? '30%' : '45%',
-  },
-  quickButtonDefault: {
-    backgroundColor: '#F9FAFB',
-    borderColor: '#E5E7EB',
-  },
-  quickButtonSelected: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
-  },
-  quickButtonIcon: {
-    fontSize: isTablet ? 20 : 24,
-    marginBottom: 4,
-  },
-  quickButtonText: {
-    fontSize: isTablet ? 12 : 14,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  quickButtonTextDefault: {
-    color: '#374151',
-  },
-  quickButtonTextSelected: {
-    color: '#1E40AF',
-  },
-  quickButtonKdv: {
-    fontSize: 10,
-    color: '#6B7280',
-  },
-
-  // Form Section
-  formSection: {
-    gap: 20,
-  },
+  // Form Fields
   fieldContainer: {
-    marginBottom: 4,
+    marginBottom: 20,
   },
   fieldLabel: {
-    fontSize: isTablet ? 16 : 14,
+    fontSize: 14,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
+    borderColor: '#D1D5DB',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: isTablet ? 12 : 18,
-    fontSize: isTablet ? 14 : 16,
-  },
-  inputDefault: {
-    borderColor: '#D1D5DB',
+    paddingVertical: 18,
+    fontSize: 16,
     backgroundColor: '#ffffff',
-  },
-  inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    color: '#374151',
   },
 
-  // Error
-  errorContainer: {
+  // Fatura Buttons
+  faturaButtonContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
+    gap: 12,
   },
-  errorIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  errorText: {
-    fontSize: 12,
-    color: '#EF4444',
+  faturaButton: {
     flex: 1,
+    borderWidth: 2,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  faturaButtonActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  faturaButtonInactive: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
+  },
+  faturaButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  faturaButtonTextActive: {
+    color: '#1E40AF',
+  },
+  faturaButtonTextInactive: {
+    color: '#6B7280',
+  },
+  faturaButtonDesc: {
+    fontSize: 12,
+  },
+  faturaButtonDescActive: {
+    color: '#3B82F6',
+  },
+  faturaButtonDescInactive: {
+    color: '#9CA3AF',
   },
 
-  // KDV Button Grid
-  kdvButtonGrid: {
+  // KDV Grid
+  kdvGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4,
+    gap: 8,
   },
   kdvButton: {
+    width: '48%',
     borderWidth: 2,
     borderRadius: 12,
     padding: 12,
-    margin: 4,
     alignItems: 'center',
-    minWidth: isTablet ? '22%' : '45%',
-    maxWidth: isTablet ? '24%' : '48%',
   },
-  kdvButtonDefault: {
-    backgroundColor: '#F3F4F6',
-    borderColor: '#D1D5DB',
+  kdvButtonActive: {
+    backgroundColor: '#F9FAFB',
   },
-  kdvButtonSelected: {
-    backgroundColor: '#DBEAFE',
-    borderColor: '#3B82F6',
+  kdvButtonInactive: {
+    backgroundColor: '#F9FAFB',
+    borderColor: '#E5E7EB',
   },
   kdvButtonLabel: {
-    fontSize: isTablet ? 14 : 12,
+    fontSize: 12,
     fontWeight: '600',
     marginBottom: 2,
   },
-  kdvButtonLabelDefault: {
-    color: '#374151',
-  },
-  kdvButtonLabelSelected: {
-    color: '#1E40AF',
+  kdvButtonLabelInactive: {
+    color: '#6B7280',
   },
   kdvButtonDesc: {
     fontSize: 10,
-    fontWeight: '400',
   },
-  kdvButtonDescDefault: {
-    color: '#6B7280',
-  },
-  kdvButtonDescSelected: {
-    color: '#1E40AF',
+  kdvButtonDescInactive: {
+    color: '#9CA3AF',
   },
 
   // Preview
   previewContainer: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: '#BBF7D0',
     borderRadius: 12,
     padding: 16,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  previewIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    marginBottom: 20,
   },
   previewTitle: {
-    fontSize: isTablet ? 16 : 14,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#1E40AF',
+    color: '#15803D',
+    marginBottom: 12,
   },
   previewContent: {
-    gap: 6,
+    gap: 8,
   },
-  previewText: {
-    fontSize: isTablet ? 14 : 12,
-    color: '#1E40AF',
+  previewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  previewTextBold: {
-    fontSize: isTablet ? 14 : 12,
-    color: '#1E40AF',
-    fontWeight: '600',
+  previewLabel: {
+    fontSize: 13,
+    color: '#166534',
   },
   previewValue: {
+    fontSize: 13,
     fontWeight: '600',
+    color: '#166534',
   },
-  previewValueBold: {
-    fontWeight: 'bold',
+  kdvValue: {
+    color: '#059669',
   },
-  previewDivider: {
-    height: 1,
-    backgroundColor: '#BFDBFE',
-    marginVertical: 4,
+  previewNote: {
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 8,
+  },
+  previewNoteText: {
+    fontSize: 12,
+    color: '#15803D',
+    textAlign: 'center',
   },
 
   // Submit Button
   submitButton: {
     borderRadius: 12,
-    paddingVertical: isTablet ? 12 : 18,
+    paddingVertical: 18,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-    marginTop: 8,
+    marginBottom: 16,
   },
   submitButtonEnabled: {
     backgroundColor: '#3B82F6',
@@ -589,16 +448,8 @@ const styles = StyleSheet.create({
   submitButtonDisabled: {
     backgroundColor: '#D1D5DB',
   },
-  submitButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  submitButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
   submitButtonText: {
-    fontSize: isTablet ? 14 : 16,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   submitButtonTextEnabled: {
@@ -608,35 +459,33 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
 
-  // Tip
-  tipContainer: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
+  // Info
+  infoContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 16,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
   },
-  tipIcon: {
+  infoIcon: {
     fontSize: 16,
     marginRight: 8,
-    marginTop: 2,
   },
-  tipContent: {
+  infoContent: {
     flex: 1,
   },
-  tipTitle: {
-    fontSize: 12,
+  infoTitle: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#92400E',
     marginBottom: 4,
   },
-  tipText: {
-    fontSize: 11,
-    color: '#6B7280',
+  infoText: {
+    fontSize: 12,
+    color: '#92400E',
     lineHeight: 16,
+  },
+  infoBold: {
+    fontWeight: '600',
   },
 });
 
