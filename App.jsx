@@ -1,4 +1,4 @@
-// App.jsx - React Native Version with IncomeInput
+// App.jsx - React Native Version with Summary Component
 import React, { useState } from 'react';
 import {
   View,
@@ -16,6 +16,7 @@ import AddExpenseForm from './components/AddExpenseForm';
 import ExpenseDonutChart from './components/ExpenseDonutChart';
 import FixedExpenses from './components/FixedExpenses';
 import ExpenseList from './components/ExpenseList';
+import Summary from './components/Summary';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -90,33 +91,12 @@ export default function App() {
           onDeleteExpense={handleDeleteExpense}
         />
 
-        {/* Masraf Listesi kaldırıldı - artık ExpenseList component'i var */}
-
-        {/* Özet */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📈 Finansal Özet</Text>
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Hakediş:</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(numericIncome)}</Text>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Toplam Masraf:</Text>
-            <Text style={[styles.summaryValue, styles.expenseColor]}>
-              -{formatCurrency(totalExpenses)}
-            </Text>
-          </View>
-          
-          <View style={styles.divider} />
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.netIncomeLabel}>Net Kazanç:</Text>
-            <Text style={[styles.netIncomeValue, netIncome >= 0 ? styles.positive : styles.negative]}>
-              {formatCurrency(netIncome)}
-            </Text>
-          </View>
-        </View>
+        {/* Summary Component - Vergi Hesaplamaları ile */}
+        <Summary 
+          income={numericIncome}
+          expenses={expenses}
+          fixedExpenses={fixedExpenses}
+        />
 
         {/* Test Durumu Göstergesi */}
         <View style={styles.testCard}>
@@ -127,7 +107,8 @@ export default function App() {
             ✅ ExpenseDonutChart Component: Aktif{'\n'}
             ✅ FixedExpenses Component: Aktif{'\n'}
             ✅ ExpenseList Component: Aktif{'\n'}
-            ⏳ Summary & HistoryList: Gelecek
+            ✅ Summary Component: Aktif (Vergi Hesaplamalı){'\n'}
+            ⏳ HistoryList: Gelecek
           </Text>
           <Text style={styles.testNote}>
             Income: {income} | Expenses: {expenses.length} adet | Fixed: {fixedExpenses.length} adet
@@ -205,48 +186,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#374151',
     marginBottom: 16,
-  },
-  
-  // Eski expense item styles kaldırıldı - artık ExpenseList component'inde
-  
-  // Summary
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  expenseColor: {
-    color: '#EF4444',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 12,
-  },
-  netIncomeLabel: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-  },
-  netIncomeValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  positive: {
-    color: '#10B981',
-  },
-  negative: {
-    color: '#EF4444',
   },
   
   // Test Card
