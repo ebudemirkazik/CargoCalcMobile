@@ -17,6 +17,8 @@ import ExpenseDonutChart from './components/ExpenseDonutChart';
 import FixedExpenses from './components/FixedExpenses';
 import ExpenseList from './components/ExpenseList';
 import Summary from './components/Summary';
+import HistoryList from './components/HistoryList';
+import MockStorage from './utils/MockStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -25,6 +27,7 @@ export default function App() {
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
 
   const handleAddExpense = (newExpense) => {
     const expenseWithId = {
@@ -47,6 +50,11 @@ export default function App() {
   // Sabit gideri manuel masraflara ekle
   const handleAddToManualExpenses = (fixedExpense) => {
     setExpenses(prev => [...prev, fixedExpense]);
+  };
+
+  // History refresh trigger fonksiyonu
+  const refreshHistory = () => {
+    setHistoryRefreshTrigger(prev => prev + 1);
   };
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -78,7 +86,7 @@ export default function App() {
         {/* Masraf Dağılımı Grafiği - Real Component */}
         <ExpenseDonutChart expenses={expenses} />
 
-        {/* Yıllık Sabit Giderler - Real Component */}
+        {/* Yıllık Sabit Giderler - MockStorage ile */}
         <FixedExpenses 
           onFixedExpensesChange={handleFixedExpensesChange}
           onAddToManualExpenses={handleAddToManualExpenses}
@@ -96,7 +104,11 @@ export default function App() {
           income={numericIncome}
           expenses={expenses}
           fixedExpenses={fixedExpenses}
+          onHistorySaved={refreshHistory}
         />
+
+        {/* History List Component */}
+        <HistoryList refreshTrigger={historyRefreshTrigger} />
 
         {/* Test Durumu Göstergesi */}
         <View style={styles.testCard}>
@@ -108,7 +120,8 @@ export default function App() {
             ✅ FixedExpenses Component: Aktif{'\n'}
             ✅ ExpenseList Component: Aktif{'\n'}
             ✅ Summary Component: Aktif (Vergi Hesaplamalı){'\n'}
-            ⏳ HistoryList: Gelecek
+            ✅ HistoryList Component: Aktif{'\n'}
+            ✅ Tüm componentler entegre edildi!
           </Text>
           <Text style={styles.testNote}>
             Income: {income} | Expenses: {expenses.length} adet | Fixed: {fixedExpenses.length} adet

@@ -1,4 +1,4 @@
-// components/FixedExpenses.jsx - React Native Version (Fixed AsyncStorage)
+// components/FixedExpenses.jsx - React Native Version with MockStorage
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,9 +10,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-
-// AsyncStorage'ı kaldırdık - şimdilik memory'de tutacağız
-// import AsyncStorage from '@react-native-async-storage/async-storage';
+import MockStorage from '../utils/MockStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -25,19 +23,44 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     kdvRate: 20,
   });
 
-  // Basit memory storage - şimdilik AsyncStorage yerine
+  // MockStorage'dan yükleme
   useEffect(() => {
-    // İlk yükleme - boş başlıyoruz
-    calculateMonthlyExpenses([]);
+    loadFixedExpenses();
   }, []);
+
+  const loadFixedExpenses = async () => {
+    try {
+      const stored = await MockStorage.getItem('fixedExpenses');
+      const expenses = stored ? JSON.parse(stored) : [];
+      console.log('FixedExpenses yüklendi:', expenses);
+      setFixedExpenses(expenses);
+      calculateMonthlyExpenses(expenses);
+    } catch (error) {
+      console.error('FixedExpenses yükleme hatası:', error);
+      setFixedExpenses([]);
+      calculateMonthlyExpenses([]);
+    }
+  };
+
+  const saveFixedExpenses = async (expenses) => {
+    try {
+      await MockStorage.setItem('fixedExpenses', JSON.stringify(expenses));
+      console.log('FixedExpenses kaydedildi:', expenses);
+    } catch (error) {
+      console.error('FixedExpenses kaydetme hatası:', error);
+    }
+  };
 
   // Aylık masrafları hesapla ve parent'a gönder
   const calculateMonthlyExpenses = (expenses) => {
     const monthlyExpenses = expenses.map((expense) => ({
-      ...expense,
-      amount: Math.round(expense.yearlyAmount / 12), // Aylık tutar
+      name: expense.name,
+      monthlyAmount: Math.round(expense.yearlyAmount / 12), // Aylık tutar
+      kdvRate: expense.kdvRate,
       isFixed: true, // Sabit gider olduğunu belirt
     }));
+
+    console.log('Hesaplanan monthly expenses:', monthlyExpenses);
 
     // Parent'a sadece hesaplama için gönder
     if (onFixedExpensesChange) {
@@ -46,7 +69,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
   };
 
   // Yeni sabit gider ekle
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!newExpense.name || !newExpense.yearlyAmount) {
       Alert.alert('Uyarı', 'Lütfen tüm alanları doldurun!');
       return;
@@ -61,6 +84,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
 
     const updated = [...fixedExpenses, expense];
     setFixedExpenses(updated);
+    await saveFixedExpenses(updated);
     calculateMonthlyExpenses(updated);
 
     // Form'u temizle
@@ -69,7 +93,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
   };
 
   // Sabit gider sil
-  const handleDeleteExpense = (id) => {
+  const handleDeleteExpense = async (id) => {
     Alert.alert(
       'Silme Onayı',
       'Bu sabit gideri silmek istediğinizden emin misiniz?',
@@ -78,9 +102,10 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
         {
           text: 'Sil',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
             const updated = fixedExpenses.filter((expense) => expense.id !== id);
             setFixedExpenses(updated);
+            await saveFixedExpenses(updated);
             calculateMonthlyExpenses(updated);
             Alert.alert('Başarılı!', 'Sabit gider silindi!');
           },
@@ -93,6 +118,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
   const handleAddToManual = (expense) => {
     const monthlyAmount = Math.round(expense.yearlyAmount / 12);
     const manualExpense = {
+      id: Date.now(),
       name: expense.name,
       amount: monthlyAmount,
       kdvRate: expense.kdvRate,
@@ -107,17 +133,20 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     }
   };
 
-  const format = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+  const format = (n) => {
+    if (!n || isNaN(n)) return '0';
+    return n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+  };
 
   const totalYearlyAmount = fixedExpenses.reduce(
-    (sum, expense) => sum + expense.yearlyAmount,
+    (sum, expense) => sum + (expense.yearlyAmount || 0),
     0
   );
   const totalMonthlyAmount = Math.round(totalYearlyAmount / 12);
 
   // Toplam KDV hesapla
   const totalYearlyKdv = fixedExpenses.reduce((sum, expense) => {
-    const kdv = expense.yearlyAmount * (expense.kdvRate / (100 + expense.kdvRate));
+    const kdv = (expense.yearlyAmount || 0) * ((expense.kdvRate || 0) / (100 + (expense.kdvRate || 0)));
     return sum + (isNaN(kdv) ? 0 : kdv);
   }, 0);
   const totalMonthlyKdv = Math.round(totalYearlyKdv / 12);
@@ -135,6 +164,13 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       <View style={styles.card}>
         {/* Header */}
         <Text style={styles.headerTitle}>💾 Yıllık Sabit Giderler</Text>
+
+        {/* Debug Info */}
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugText}>
+            Debug: {fixedExpenses.length} sabit gider, Toplam aylık: {format(totalMonthlyAmount)} ₺
+          </Text>
+        </View>
 
         {/* Yeni sabit gider ekleme formu */}
         <View style={styles.formSection}>
@@ -248,9 +284,9 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
             <Text style={styles.listTitle}>📋 Kayıtlı Sabit Giderler:</Text>
 
             {fixedExpenses.map((expense) => {
-              const yearlyKdv = expense.yearlyAmount * (expense.kdvRate / (100 + expense.kdvRate));
+              const yearlyKdv = (expense.yearlyAmount || 0) * ((expense.kdvRate || 0) / (100 + (expense.kdvRate || 0)));
               const monthlyKdv = Math.round(yearlyKdv / 12);
-              const monthlyAmount = Math.round(expense.yearlyAmount / 12);
+              const monthlyAmount = Math.round((expense.yearlyAmount || 0) / 12);
 
               return (
                 <View key={expense.id} style={styles.expenseItem}>
@@ -356,6 +392,18 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: '#F3F4F6',
+  },
+
+  // Debug
+  debugContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#1E40AF',
   },
 
   // Header

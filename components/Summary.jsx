@@ -1,494 +1,392 @@
-// components/Summary.jsx - React Native Version
+// Summary.jsx - React Native Version with Shared Mock Storage
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
   Dimensions,
 } from 'react-native';
-import { calculateIncomeTax } from '../utils/taxCalculator';
-import { exportToExcel } from '../utils/exportToExcel';
-import { getCategory } from '../utils/categorizeExpense';
-import { exportToPDF } from '../utils/exportToPDF';
+import MockStorage from '../utils/MockStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
-function Summary({ income, expenses, onHistoryUpdate }) {
-  const [showTaxDetails, setShowTaxDetails] = useState(false);
-  const [showCalculationLogic, setShowCalculationLogic] = useState(false);
+const Summary = ({ income, expenses, fixedExpenses, onHistorySaved }) => {
+  const [expandedSections, setExpandedSections] = useState({
+    breakdown: false,
+    taxes: false,
+    netIncome: false,
+  });
 
-  // Memory-based history storage (AsyncStorage yerine)
-  const saveSummaryToMemory = (data) => {
-    try {
-      // Şimdilik sadece console'a log - gerçek uygulamada AsyncStorage kullanılacak
-      console.log('Hesaplama kaydedildi:', data);
-      
-      if (onHistoryUpdate) {
-        onHistoryUpdate();
-      }
-      return true;
-    } catch (error) {
-      console.error('Hesaplama geçmişi kaydedilemedi:', error);
-      return false;
-    }
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
   };
 
-  // Fatura kontrol fonksiyonu
-  const isFatura = (item) => item.name.trim().toLowerCase() === 'fatura';
+  // Hesaplamalar - Null Check'lerle güvenli
+  const totalExpenses = Array.isArray(expenses) ? expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0) : 0;
+  const totalFixedExpenses = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => sum + (expense.monthlyAmount || 0), 0) : 0;
+  const allExpenses = totalExpenses + totalFixedExpenses;
 
-  // Gerçek nakit çıkan masraflar (ekranda gösterilecek) - Fatura hariç
-  const totalExpenses = expenses.reduce((acc, item) => {
-    return isFatura(item) ? acc : acc + item.amount;
-  }, 0);
+  console.log('Summary hesaplamaları:', {
+    income,
+    totalExpenses,
+    totalFixedExpenses,
+    allExpenses,
+    expensesLength: expenses?.length || 0,
+    fixedExpensesLength: fixedExpenses?.length || 0
+  });
 
-  // İndirilecek tüm KDV'ler (fatura dahil)
-  const totalKdv = expenses.reduce((acc, item) => {
-    const kdv = item.amount * (item.kdvRate / (100 + item.kdvRate));
-    return acc + (isNaN(kdv) ? 0 : kdv);
-  }, 0);
+  // KDV Hesaplamaları - Null Check'lerle güvenli
+  const expenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    const kdvAmount = ((expense.amount || 0) * (expense.kdvRate || 0)) / 100;
+    return sum + kdvAmount;
+  }, 0) : 0;
 
-  // Vergi matrahından düşülecek tüm masraflar (fatura dahil!)
-  const vergiMatrahMasraflar = expenses.reduce((acc, item) => {
-    return acc + item.amount;
-  }, 0);
+  const fixedExpenseKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
+    const kdvAmount = ((expense.monthlyAmount || 0) * (expense.kdvRate || 0)) / 100;
+    return sum + kdvAmount;
+  }, 0) : 0;
 
-  // Hakediş KDV'si (%20 dahil hesaplaması)
-  const hakedisKdv = income * (20 / 120);
+  const toplamIndirilecekKdv = expenseKdv + fixedExpenseKdv;
 
-  // Devlete ödenecek KDV
-  const odenecekKdv = hakedisKdv - totalKdv;
+  // Gelir KDV'si (%20)
+  const gelirKdvsi = income * 0.20;
+  const odenecekKdv = Math.max(0, gelirKdvsi - toplamIndirilecekKdv);
 
-  // Gelir vergisi matrahı (hakediş - tüm masraflar - ödenecek KDV)
-  const gelirVergisiMatrahi = income - vergiMatrahMasraflar - odenecekKdv;
+  // Gelir Vergisi Hesaplama (KDV hariç gelir üzerinden)
+  const kdvHaricGelir = income / 1.20;
+  const kdvHaricGiderler = allExpenses / 1.20;
+  const vergiyeTabiGelir = kdvHaricGelir - kdvHaricGiderler;
 
-  // Gelir vergisi
-  const gelirVergisi = calculateIncomeTax(gelirVergisiMatrahi);
-
-  // Net kazanç
-  const netKazanc = income - totalExpenses - odenecekKdv - gelirVergisi;
-
-  // Fatura masraflarını ayrı gösterelim
-  const faturaExpenses = expenses.filter(isFatura);
-  const totalFaturaMasraflar = faturaExpenses.reduce(
-    (acc, item) => acc + item.amount,
-    0
-  );
-  const faturaKdv = faturaExpenses.reduce((acc, item) => {
-    const kdv = item.amount * (item.kdvRate / (100 + item.kdvRate));
-    return acc + (isNaN(kdv) ? 0 : kdv);
-  }, 0);
-
-  const format = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
-
-  // Manuel kaydetme fonksiyonu
-  const handleSave = () => {
-    if (income > 0) {
-      const summaryData = {
-        income,
-        totalExpenses,
-        totalKdv,
-        hakedisKdv,
-        odenecekKdv,
-        gelirVergisiMatrahi,
-        gelirVergisi,
-        netKazanc,
-        expenses: expenses,
-        date: new Date().toISOString(),
-      };
-      
-      const success = saveSummaryToMemory(summaryData);
-      
-      if (success) {
-        Alert.alert(
-          'Başarılı! ✅',
-          'Hesaplama başarıyla kaydedildi!',
-          [{ text: 'Tamam', style: 'default' }]
-        );
-      } else {
-        Alert.alert('Hata', 'Hesaplama kaydedilemedi.');
-      }
+  let gelirVergisi = 0;
+  if (vergiyeTabiGelir > 0) {
+    if (vergiyeTabiGelir <= 110000) {
+      gelirVergisi = vergiyeTabiGelir * 0.15;
+    } else if (vergiyeTabiGelir <= 230000) {
+      gelirVergisi = 110000 * 0.15 + (vergiyeTabiGelir - 110000) * 0.20;
+    } else if (vergiyeTabiGelir <= 870000) {
+      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + (vergiyeTabiGelir - 230000) * 0.27;
+    } else if (vergiyeTabiGelir <= 3000000) {
+      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + 640000 * 0.27 + (vergiyeTabiGelir - 870000) * 0.35;
     } else {
-      Alert.alert('Uyarı', 'Lütfen önce hakediş tutarını giriniz.');
+      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + 640000 * 0.27 + 2130000 * 0.35 + (vergiyeTabiGelir - 3000000) * 0.40;
     }
+  }
+
+  const toplamVergi = odenecekKdv + gelirVergisi;
+  const netKazanc = income - allExpenses - toplamVergi;
+
+  const format = (amount) => {
+    return amount.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
   };
 
-  const handleExportPDF = async () => {
+  // AsyncStorage'a kaydetme fonksiyonu
+  const saveToHistory = async () => {
+    console.log('saveToHistory çağrıldı');
+    console.log('onHistorySaved prop:', onHistorySaved);
+    
     try {
-      await exportToPDF({
-        expenses,
-        income,
-        totalExpenses,
-        totalFaturaMasraflar,
-        faturaKdv,
-        totalKdv,
-        hakedisKdv,
-        odenecekKdv,
-        gelirVergisiMatrahi,
-        gelirVergisi,
-        netKazanc,
-      });
+      const historyData = {
+        date: new Date().toISOString(),
+        income: income,
+        expenses: expenses,
+        fixedExpenses: fixedExpenses,
+        totalExpenses: allExpenses,
+        odenecekKdv: odenecekKdv,
+        gelirVergisi: gelirVergisi,
+        toplamVergi: toplamVergi,
+        netKazanc: netKazanc,
+        vergiyeTabiGelir: vergiyeTabiGelir,
+        kdvHaricGelir: kdvHaricGelir,
+        timestamp: Date.now(),
+      };
+
+      console.log('Kaydedilecek data:', historyData);
+
+      const existingData = await MockStorage.getItem('cargoCalcHistory');
+      console.log('Mevcut data:', existingData);
+      
+      const history = existingData ? JSON.parse(existingData) : [];
+      console.log('Parse edilmiş history:', history);
+      
+      history.push(historyData);
+      console.log('Yeni history:', history);
+      
+      await MockStorage.setItem('cargoCalcHistory', JSON.stringify(history));
+      console.log('MockStorage\'a yazıldı');
+      
+      Alert.alert(
+        'Başarılı!',
+        'Hesaplama geçmişe kaydedildi.',
+        [{ text: 'Tamam' }]
+      );
+      
+      // Parent component'e bildir
+      if (onHistorySaved) {
+        console.log('onHistorySaved çağrılıyor');
+        onHistorySaved();
+      } else {
+        console.log('onHistorySaved prop bulunamadı!');
+      }
+      
+      // Ekstra debug - MockStorage'daki veriyi kontrol et
+      const checkData = await MockStorage.getItem('cargoCalcHistory');
+      console.log('Kaydedilen son data:', checkData);
+      
+      // MockStorage tüm datayı göster
+      MockStorage.getAllData();
     } catch (error) {
-      Alert.alert('Hata', 'PDF oluşturulamadı: ' + error.message);
-    }
-  };
-
-  const handleExportExcel = async () => {
-    try {
-      const today = new Date().toISOString().split('T')[0];
-
-      const expenseRows = expenses.map((item) => ({
-        Tarih: item.date || today,
-        Masraf: item.name,
-        Tutar: item.amount + ' ₺',
-        KDV: item.kdvRate + '%',
-        Kategori: getCategory(item.name),
-      }));
-
-      const summaryRows = [
-        { Başlık: 'Hakediş', Değer: format(income) + ' ₺' },
-        { Başlık: 'Görünür Masraflar', Değer: format(totalExpenses) + ' ₺' },
-        ...(totalFaturaMasraflar > 0
-          ? [
-              {
-                Başlık: 'Fatura Masrafları',
-                Değer: format(totalFaturaMasraflar) + ' ₺',
-              },
-              {
-                Başlık: 'Fatura KDV İndirimi',
-                Değer: format(faturaKdv) + ' ₺',
-              },
-            ]
-          : []),
-        { Başlık: 'Toplam İndirilecek KDV', Değer: format(totalKdv) + ' ₺' },
-        { Başlık: 'Hakediş KDV (%20)', Değer: format(hakedisKdv) + ' ₺' },
-        { Başlık: 'Ödenecek KDV', Değer: format(odenecekKdv) + ' ₺' },
-        {
-          Başlık: 'Gelir Vergisi Matrahı',
-          Değer: format(gelirVergisiMatrahi) + ' ₺',
-        },
-        { Başlık: 'Gelir Vergisi', Değer: format(gelirVergisi) + ' ₺' },
-        { Başlık: 'Net Kazanç', Değer: format(netKazanc) + ' ₺' },
-      ];
-
-      const exportData = [...expenseRows, {}, ...summaryRows];
-      await exportToExcel(exportData, `CargoCalc-${today}.xlsx`);
-    } catch (error) {
-      Alert.alert('Hata', 'Excel dosyası oluşturulamadı: ' + error.message);
+      console.error('Kaydetme hatası:', error);
+      Alert.alert(
+        'Hata!',
+        'Hesaplama kaydedilemedi: ' + error.message,
+        [{ text: 'Tamam' }]
+      );
     }
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.card}>
-        {/* Header */}
-        <Text style={styles.headerTitle}>📊 Finansal Özet</Text>
-
-        {/* Ana rakamlar */}
-        <View style={styles.mainStatsContainer}>
-          {/* Hakediş */}
-          <View style={[styles.statCard, styles.incomeCard]}>
-            <View style={styles.statContent}>
-              <Text style={styles.statLabel}>Hakediş:</Text>
-              <Text style={[styles.statValue, styles.incomeValue]}>
-                {format(income)} ₺
-              </Text>
-            </View>
-          </View>
-
-          {/* Görünür masraflar */}
-          <View style={[styles.statCard, styles.expenseCard]}>
-            <View style={styles.statContent}>
-              <Text style={styles.statLabel}>Görünür Masraflar:</Text>
-              <Text style={[styles.statValue, styles.expenseValue]}>
-                {format(totalExpenses)} ₺
-              </Text>
-            </View>
-          </View>
-
-          {/* Fatura masrafları varsa göster */}
-          {totalFaturaMasraflar > 0 && (
-            <View style={[styles.statCard, styles.hiddenExpenseCard]}>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Gizli Masraflar (Fatura):</Text>
-                <Text style={[styles.statValue, styles.hiddenExpenseValue]}>
-                  {format(totalFaturaMasraflar)} ₺
-                </Text>
-              </View>
-              <Text style={styles.hiddenExpenseNote}>
-                Vergi matrahından düşülüyor ama görünür masraflarda sayılmıyor
-              </Text>
-              <Text style={styles.hiddenExpenseKdv}>
-                KDV indirimi: {format(faturaKdv)} ₺
-              </Text>
-            </View>
-          )}
+    <View style={styles.container}>
+      <Text style={styles.title}>📊 Finansal Özet & Vergi Hesaplama</Text>
+      
+      {/* Ana Özet Kartı */}
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Hakediş (KDV Dahil):</Text>
+          <Text style={styles.summaryValue}>{format(income)} ₺</Text>
         </View>
-
-        {/* Vergi detayları - Genişletilebilir */}
-        <TouchableOpacity
-          onPress={() => setShowTaxDetails(!showTaxDetails)}
-          style={styles.expandableCard}
-          activeOpacity={0.8}
-        >
-          <View style={styles.expandableHeader}>
-            <Text style={styles.expandableTitle}>Vergi Detayları</Text>
-            <View style={styles.expandableRight}>
-              <Text style={styles.expandableAmount}>
-                {format(odenecekKdv + gelirVergisi)} ₺
-              </Text>
-              <Text style={[styles.expandIcon, showTaxDetails && styles.expandIconRotated]}>
-                ⬇️
-              </Text>
-            </View>
-          </View>
-
-          {showTaxDetails && (
-            <View style={styles.expandableContent}>
-              <View style={styles.taxDetailRow}>
-                <Text style={styles.taxDetailLabel}>Toplam İndirilecek KDV:</Text>
-                <Text style={[styles.taxDetailValue, styles.positiveValue]}>
-                  {format(totalKdv)} ₺
-                </Text>
-              </View>
-
-              <View style={styles.taxDetailRow}>
-                <Text style={styles.taxDetailLabel}>Hakediş KDV (%20):</Text>
-                <Text style={styles.taxDetailValue}>
-                  {format(hakedisKdv)} ₺
-                </Text>
-              </View>
-
-              <View style={[styles.taxDetailRow, styles.importantRow]}>
-                <Text style={styles.taxDetailLabel}>Ödenecek KDV:</Text>
-                <Text style={[styles.taxDetailValue, styles.negativeValue]}>
-                  {format(odenecekKdv)} ₺
-                </Text>
-              </View>
-
-              <View style={styles.taxDetailRow}>
-                <Text style={styles.taxDetailLabel}>Gelir Vergisi Matrahı:</Text>
-                <Text style={styles.taxDetailValue}>
-                  {format(gelirVergisiMatrahi)} ₺
-                </Text>
-              </View>
-
-              <View style={styles.taxDetailRow}>
-                <Text style={styles.taxDetailLabel}>Gelir Vergisi:</Text>
-                <Text style={[styles.taxDetailValue, styles.negativeValue]}>
-                  {format(gelirVergisi)} ₺
-                </Text>
-              </View>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Toplam vergi yükü */}
-        <View style={styles.totalTaxCard}>
-          <View style={styles.totalTaxContent}>
-            <Text style={styles.totalTaxLabel}>
-              Toplam Vergi Yükü{'\n'}(KDV + Gelir Vergisi):
-            </Text>
-            <Text style={styles.totalTaxValue}>
-              {format(odenecekKdv + gelirVergisi)} ₺
-            </Text>
-          </View>
+        
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Toplam Masraflar:</Text>
+          <Text style={[styles.summaryValue, styles.negative]}>
+            -{format(allExpenses)} ₺
+          </Text>
         </View>
-
-        {/* Net Kazanç - Ana Sonuç */}
-        <View style={styles.netProfitCard}>
-          <Text style={styles.netProfitTitle}>NET KAZANÇ</Text>
-          <Text style={styles.netProfitValue}>
+        
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Toplam Vergiler:</Text>
+          <Text style={[styles.summaryValue, styles.negative]}>
+            -{format(toplamVergi)} ₺
+          </Text>
+        </View>
+        
+        <View style={styles.divider} />
+        
+        <View style={styles.summaryRow}>
+          <Text style={styles.netLabel}>Net Kazanç:</Text>
+          <Text style={[styles.netValue, netKazanc >= 0 ? styles.positive : styles.negative]}>
             {format(netKazanc)} ₺
           </Text>
-          <Text style={styles.netProfitSubtitle}>
-            Tüm vergiler düşülmüş net kâr
+        </View>
+      </View>
+
+      {/* Masraf Dağılımı */}
+      <View style={styles.expandableCard}>
+        <TouchableOpacity 
+          style={styles.expandableHeader}
+          onPress={() => toggleSection('breakdown')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.expandableTitle}>💰 Masraf Dağılımı</Text>
+          <Text style={styles.expandIcon}>
+            {expandedSections.breakdown ? '▼' : '▶'}
           </Text>
-        </View>
-
-        {/* Hesaplama mantığı - Genişletilebilir */}
-        <TouchableOpacity
-          onPress={() => setShowCalculationLogic(!showCalculationLogic)}
-          style={styles.expandableCard}
-          activeOpacity={0.8}
-        >
-          <View style={styles.expandableHeader}>
-            <Text style={styles.expandableTitle}>Hesaplama Mantığı</Text>
-            <Text style={[styles.expandIcon, showCalculationLogic && styles.expandIconRotated]}>
-              ⬇️
-            </Text>
-          </View>
-
-          {showCalculationLogic && (
-            <View style={styles.expandableContent}>
-              <Text style={styles.calculationStep}>• Hakediş: {format(income)} ₺</Text>
-              <Text style={styles.calculationStep}>• Görünür Masraflar: -{format(totalExpenses)} ₺</Text>
-              {totalFaturaMasraflar > 0 && (
-                <Text style={styles.calculationStep}>• Gizli Masraflar (Fatura): -{format(totalFaturaMasraflar)} ₺</Text>
-              )}
-              <Text style={styles.calculationStep}>• Ödenecek KDV: -{format(odenecekKdv)} ₺</Text>
-              <Text style={styles.calculationStep}>• Gelir Vergisi: -{format(gelirVergisi)} ₺</Text>
-              <View style={styles.calculationDivider} />
-              <Text style={styles.calculationResult}>= Net Kazanç: {format(netKazanc)} ₺</Text>
+        </TouchableOpacity>
+        
+        {expandedSections.breakdown && (
+          <View style={styles.expandableContent}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Manuel Masraflar:</Text>
+              <Text style={styles.detailValue}>{format(totalExpenses)} ₺</Text>
             </View>
-          )}
-        </TouchableOpacity>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Sabit Masraflar (Aylık):</Text>
+              <Text style={styles.detailValue}>{format(totalFixedExpenses)} ₺</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>İndirilecek KDV:</Text>
+              <Text style={styles.detailValue}>{format(toplamIndirilecekKdv)} ₺</Text>
+            </View>
+          </View>
+        )}
+      </View>
 
-        {/* Kaydet butonu */}
-        <TouchableOpacity
-          onPress={handleSave}
-          style={styles.saveButton}
-          activeOpacity={0.8}
+      {/* Vergi Detayları */}
+      <View style={styles.expandableCard}>
+        <TouchableOpacity 
+          style={styles.expandableHeader}
+          onPress={() => toggleSection('taxes')}
+          activeOpacity={0.7}
         >
-          <Text style={styles.saveButtonText}>Hesaplamayı Kaydet</Text>
+          <Text style={styles.expandableTitle}>🏦 Vergi Hesaplamaları</Text>
+          <Text style={styles.expandIcon}>
+            {expandedSections.taxes ? '▼' : '▶'}
+          </Text>
         </TouchableOpacity>
-
-        {/* Hızlı istatistikler */}
-        <View style={styles.quickStatsContainer}>
-          <View style={styles.quickStatCard}>
-            <Text style={styles.quickStatValue}>
-              {income > 0 ? ((netKazanc / income) * 100).toFixed(1) : '0'}%
-            </Text>
-            <Text style={styles.quickStatLabel}>Kar Marjı</Text>
-          </View>
-          <View style={styles.quickStatCard}>
-            <Text style={styles.quickStatValue}>
-              {income > 0
-                ? (((odenecekKdv + gelirVergisi) / income) * 100).toFixed(1)
-                : '0'}%
-            </Text>
-            <Text style={styles.quickStatLabel}>Vergi Oranı</Text>
-          </View>
-        </View>
-
-        {/* Export buttons */}
-        <View style={styles.exportContainer}>
-          <TouchableOpacity
-            onPress={handleExportPDF}
-            style={[styles.exportButton, styles.pdfButton]}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.exportButtonText}>PDF'e Aktar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleExportExcel}
-            style={[styles.exportButton, styles.excelButton]}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.exportButtonText}>Excel'e Aktar</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Mobil ipucu */}
-        {!isTablet && (
-          <View style={styles.tipContainer}>
-            <Text style={styles.tipIcon}>💡</Text>
-            <View style={styles.tipContent}>
-              <Text style={styles.tipTitle}>İpucu:</Text>
-              <Text style={styles.tipText}>
-                Vergi detaylarını ve hesaplama mantığını görmek için ilgili
-                bölümlere dokunun.
+        
+        {expandedSections.taxes && (
+          <View style={styles.expandableContent}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Gelir KDV'si (%20):</Text>
+              <Text style={styles.detailValue}>{format(gelirKdvsi)} ₺</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>İndirilecek KDV:</Text>
+              <Text style={[styles.detailValue, styles.positive]}>
+                -{format(toplamIndirilecekKdv)} ₺
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Ödenecek KDV:</Text>
+              <Text style={[styles.detailValue, styles.kdvColor]}>
+                {format(odenecekKdv)} ₺
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Vergiye Tabi Gelir:</Text>
+              <Text style={styles.detailValue}>{format(vergiyeTabiGelir)} ₺</Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Gelir Vergisi:</Text>
+              <Text style={[styles.detailValue, styles.taxColor]}>
+                {format(gelirVergisi)} ₺
               </Text>
             </View>
           </View>
         )}
       </View>
-    </ScrollView>
+
+      {/* Net Gelir Analizi */}
+      <View style={styles.expandableCard}>
+        <TouchableOpacity 
+          style={styles.expandableHeader}
+          onPress={() => toggleSection('netIncome')}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.expandableTitle}>📈 Net Gelir Analizi</Text>
+          <Text style={styles.expandIcon}>
+            {expandedSections.netIncome ? '▼' : '▶'}
+          </Text>
+        </TouchableOpacity>
+        
+        {expandedSections.netIncome && (
+          <View style={styles.expandableContent}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Brüt Kazanç:</Text>
+              <Text style={styles.detailValue}>
+                {format(income - allExpenses)} ₺
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Vergi Yükü:</Text>
+              <Text style={[styles.detailValue, styles.negative]}>
+                -{format(toplamVergi)} ₺
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Net Kazanç:</Text>
+              <Text style={[styles.detailValue, netKazanc >= 0 ? styles.positive : styles.negative]}>
+                {format(netKazanc)} ₺
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Kar Marjı:</Text>
+              <Text style={styles.detailValue}>
+                {income > 0 ? `${((netKazanc / income) * 100).toFixed(1)}%` : '0%'}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Kaydet Butonu */}
+      <TouchableOpacity 
+        style={styles.saveButton}
+        onPress={saveToHistory}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.saveButtonText}>💾 Hesaplamayı Kaydet</Text>
+      </TouchableOpacity>
+
+      {/* Uyarı */}
+      <View style={styles.warning}>
+        <Text style={styles.warningIcon}>⚠️</Text>
+        <Text style={styles.warningText}>
+          Bu hesaplamalar tahminidir. Gerçek vergi hesaplamaları için mutlaka 
+          muhasebeci ile görüşünüz.
+        </Text>
+      </View>
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  card: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: isTablet ? 24 : 20,
-    margin: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    shadowRadius: 4,
+    elevation: 3,
   },
-
-  // Header
-  headerTitle: {
-    fontSize: isTablet ? 20 : 18,
+  title: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#374151',
-    marginBottom: 24,
+    marginBottom: 16,
   },
 
-  // Main Stats
-  mainStatsContainer: {
-    marginBottom: 24,
-    gap: 16,
-  },
-  statCard: {
+  // Summary Card
+  summaryCard: {
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
     padding: 16,
-    borderLeftWidth: 4,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  incomeCard: {
-    backgroundColor: '#EFF6FF',
-    borderLeftColor: '#3B82F6',
-  },
-  expenseCard: {
-    backgroundColor: '#FEF2F2',
-    borderLeftColor: '#EF4444',
-  },
-  hiddenExpenseCard: {
-    backgroundColor: '#FFFBEB',
-    borderLeftColor: '#F59E0B',
-  },
-  statContent: {
+  summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 8,
   },
-  statLabel: {
-    fontSize: isTablet ? 16 : 14,
+  summaryLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    flex: 1,
+  },
+  summaryValue: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1E293B',
   },
-  statValue: {
-    fontSize: isTablet ? 18 : 16,
+  netLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  netValue: {
+    fontSize: 18,
     fontWeight: 'bold',
   },
-  incomeValue: {
-    color: '#1E40AF',
-  },
-  expenseValue: {
-    color: '#DC2626',
-  },
-  hiddenExpenseValue: {
-    color: '#D97706',
-  },
-  hiddenExpenseNote: {
-    fontSize: 12,
-    color: '#92400E',
-    marginTop: 8,
-  },
-  hiddenExpenseKdv: {
-    fontSize: 12,
-    color: '#92400E',
-    marginTop: 4,
-  },
 
-  // Expandable Card
+  // Expandable Cards
   expandableCard: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     overflow: 'hidden',
   },
   expandableHeader: {
@@ -496,234 +394,92 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    backgroundColor: '#F1F5F9',
   },
   expandableTitle: {
-    fontSize: isTablet ? 16 : 14,
-    fontWeight: 'bold',
-    color: '#2563EB',
-    flex: 1,
-  },
-  expandableRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  expandableAmount: {
-    fontSize: isTablet ? 16 : 14,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginRight: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#334155',
   },
   expandIcon: {
-    fontSize: 12,
-    transform: [{ rotate: '0deg' }],
-  },
-  expandIconRotated: {
-    transform: [{ rotate: '180deg' }],
+    fontSize: 14,
+    color: '#64748B',
   },
   expandableContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    gap: 12,
+    padding: 16,
+    backgroundColor: '#ffffff',
   },
-  taxDetailRow: {
+
+  // Detail Rows
+  detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
-  importantRow: {
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    marginTop: 8,
-    paddingTop: 16,
+  detailLabel: {
+    fontSize: 14,
+    color: '#64748B',
+    flex: 1,
   },
-  taxDetailLabel: {
-    fontSize: isTablet ? 14 : 12,
-    color: '#6B7280',
-  },
-  taxDetailValue: {
-    fontSize: isTablet ? 14 : 12,
+  detailValue: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1E293B',
   },
-  positiveValue: {
+
+  // Colors
+  positive: {
     color: '#059669',
   },
-  negativeValue: {
+  negative: {
     color: '#DC2626',
   },
-
-  // Total Tax Card
-  totalTaxCard: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+  kdvColor: {
+    color: '#D97706',
   },
-  totalTaxContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalTaxLabel: {
-    fontSize: isTablet ? 16 : 14,
-    fontWeight: '600',
-    color: '#1E40AF',
-  },
-  totalTaxValue: {
-    fontSize: isTablet ? 18 : 16,
-    fontWeight: 'bold',
-    color: '#1E40AF',
+  taxColor: {
+    color: '#7C3AED',
   },
 
-  // Net Profit Card
-  netProfitCard: {
-    backgroundColor: '#059669',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  netProfitTitle: {
-    fontSize: isTablet ? 16 : 14,
-    fontWeight: '600',
-    color: '#ffffff',
-    opacity: 0.9,
-    marginBottom: 8,
-  },
-  netProfitValue: {
-    fontSize: isTablet ? 36 : 28,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  netProfitSubtitle: {
-    fontSize: 12,
-    color: '#ffffff',
-    opacity: 0.8,
-  },
-
-  // Calculation Logic
-  calculationStep: {
-    fontSize: 12,
-    color: '#6B7280',
-    lineHeight: 18,
-  },
-  calculationDivider: {
+  // Divider
+  divider: {
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E2E8F0',
     marginVertical: 8,
-  },
-  calculationResult: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#374151',
   },
 
   // Save Button
   saveButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 12,
-    paddingVertical: isTablet ? 12 : 18,
     alignItems: 'center',
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginVertical: 16,
   },
   saveButtonText: {
     color: '#ffffff',
-    fontSize: isTablet ? 14 : 16,
-    fontWeight: 'bold',
-  },
-
-  // Quick Stats
-  quickStatsContainer: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  quickStatCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    flex: 1,
-  },
-  quickStatValue: {
-    fontSize: isTablet ? 18 : 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  quickStatLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-
-  // Export Buttons
-  exportContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  exportButton: {
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flex: 1,
-    alignItems: 'center',
-  },
-  pdfButton: {
-    backgroundColor: '#DC2626',
-  },
-  excelButton: {
-    backgroundColor: '#059669',
-  },
-  exportButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
   },
 
-  // Tip Container
-  tipContainer: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+  // Warning
+  warning: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  tipIcon: {
+  warningIcon: {
     fontSize: 16,
     marginRight: 8,
-    marginTop: 2,
   },
-  tipContent: {
+  warningText: {
     flex: 1,
-  },
-  tipTitle: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#4B5563',
-    marginBottom: 4,
-  },
-  tipText: {
-    fontSize: 11,
-    color: '#6B7280',
+    color: '#92400E',
     lineHeight: 16,
   },
 });

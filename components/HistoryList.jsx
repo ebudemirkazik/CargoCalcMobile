@@ -1,49 +1,114 @@
-//Bu bileşen localStorage'daki verileri okur ve ekrana yazdırır.
+// HistoryList.jsx - React Native Version with Shared Mock Storage
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  Dimensions,
+} from 'react-native';
+import MockStorage from '../utils/MockStorage';
 
-import React from "react";
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
-function HistoryList({ refreshTrigger }) {
-  const [history, setHistory] = React.useState([]);
+const HistoryList = ({ refreshTrigger }) => {
+  const [history, setHistory] = useState([]);
+  const [expandedItems, setExpandedItems] = useState({});
 
-  React.useEffect(() => {
-    console.log("HistoryList component loaded"); // Debug için
+  useEffect(() => {
+    console.log('HistoryList component loaded');
+    loadHistory();
+  }, [refreshTrigger]);
 
+  const loadHistory = async () => {
     try {
-      const stored = JSON.parse(localStorage.getItem("cargoCalcHistory")) || [];
-      console.log("Stored data:", stored); // Debug için
-      setHistory(stored.reverse());
+      console.log('HistoryList loadHistory çağrıldı, refreshTrigger:', refreshTrigger);
+      const stored = await MockStorage.getItem('cargoCalcHistory');
+      console.log('MockStorage\'dan okunan ham data:', stored);
+      const parsedData = stored ? JSON.parse(stored) : [];
+      console.log('Parse edilmiş data:', parsedData);
+      console.log('Array length:', parsedData.length);
+      setHistory([...parsedData].reverse());
     } catch (error) {
-      console.error("LocalStorage okuma hatası:", error);
+      console.error('MockStorage okuma hatası:', error);
       setHistory([]);
     }
-  }, [refreshTrigger]); // refreshTrigger değiştiğinde yeniden oku
+  };
 
-  const deleteHistoryItem = (indexToDelete) => {
-    const updated = history.filter((_, i) => i !== indexToDelete);
-    setHistory(updated);
-    localStorage.setItem("cargoCalcHistory", JSON.stringify(updated.reverse()));
+  const deleteHistoryItem = async (indexToDelete) => {
+    Alert.alert(
+      'Hesaplamayı Sil',
+      'Bu hesaplamayı silmek istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            const updated = history.filter((_, i) => i !== indexToDelete);
+            setHistory(updated);
+            try {
+              await MockStorage.setItem('cargoCalcHistory', JSON.stringify([...updated].reverse()));
+            } catch (error) {
+              console.error('MockStorage yazma hatası:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const clearAllHistory = () => {
+    Alert.alert(
+      'Tüm Geçmişi Temizle',
+      'Tüm geçmişi silmek istediğinizden emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Temizle',
+          style: 'destructive',
+          onPress: async () => {
+            setHistory([]);
+            try {
+              await MockStorage.removeItem('cargoCalcHistory');
+            } catch (error) {
+              console.error('MockStorage temizleme hatası:', error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const toggleExpand = (index) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }));
   };
 
   const format = (n) => {
-    if (!n || isNaN(n)) return "0";
-    return n.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+    if (!n || isNaN(n)) return '0';
+    return n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
   };
 
   const formatDate = (iso) => {
     try {
-      return new Date(iso).toLocaleString("tr-TR", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
+      return new Date(iso).toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch (error) {
-      return "Tarih bilinmiyor";
+      return 'Tarih bilinmiyor';
     }
   };
 
-  // Kısa tarih formatı (mobil için)
   const formatShortDate = (iso) => {
     try {
       const date = new Date(iso);
@@ -51,209 +116,482 @@ function HistoryList({ refreshTrigger }) {
       const diffTime = Math.abs(now - date);
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays === 1) return "Bugün";
-      if (diffDays === 2) return "Dün";
+      if (diffDays === 1) return 'Bugün';
+      if (diffDays === 2) return 'Dün';
       if (diffDays <= 7) return `${diffDays} gün önce`;
 
-      return date.toLocaleDateString("tr-TR", {
-        day: "2-digit",
-        month: "2-digit",
+      return date.toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
       });
     } catch (error) {
-      return "Tarih bilinmiyor";
+      return 'Tarih bilinmiyor';
     }
   };
 
-  console.log("History length:", history.length); // Debug için
+  console.log('History length:', history.length);
 
   return (
-    <div className="p-4 sm:p-6 bg-white rounded-xl shadow-lg">
-      <h3 className="text-xl sm:text-lg font-bold sm:font-semibold mb-6 sm:mb-4 text-gray-800">
-        Geçmiş Hesaplamalar
-      </h3>
+    <View style={styles.container}>
+      <Text style={styles.title}>📊 Geçmiş Hesaplamalar</Text>
 
       {history.length === 0 ? (
-        <div className="text-center py-8 sm:py-4">
-          <div className="text-4xl sm:text-3xl mb-4 sm:mb-2">📊</div>
-          <p className="text-base sm:text-sm text-gray-500 mb-2 sm:mb-1">
-            Henüz kayıtlı hesaplama yok
-          </p>
-          <p className="text-sm sm:text-xs text-gray-400">
-            Bir hesaplama yapıp kaydedin
-          </p>
-        </div>
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>📊</Text>
+          <Text style={styles.emptyText}>Henüz kayıtlı hesaplama yok</Text>
+          <Text style={styles.emptySubtext}>Bir hesaplama yapıp kaydedin</Text>
+        </View>
       ) : (
-        <div className="space-y-4 sm:space-y-3">
+        <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
           {history.map((item, i) => (
-            <div
-              key={i}
-              className="bg-gray-50 border border-gray-200 rounded-xl sm:rounded-lg p-4 sm:p-3 hover:bg-gray-100 transition-colors"
-            >
+            <View key={i} style={styles.historyItem}>
               {/* Başlık ve Silme Butonu */}
-              <div className="flex justify-between items-start mb-4 sm:mb-2">
-                <div>
-                  <p className="text-base sm:text-sm font-semibold sm:font-medium text-gray-800 mb-1">
-                    {formatShortDate(item.date)}
-                  </p>
-                  <p className="text-sm sm:text-xs text-gray-500">
-                    {formatDate(item.date)}
-                  </p>
-                </div>
+              <View style={styles.headerRow}>
+                <View style={styles.dateContainer}>
+                  <Text style={styles.shortDate}>{formatShortDate(item.date)}</Text>
+                  <Text style={styles.fullDate}>{formatDate(item.date)}</Text>
+                </View>
 
-                <button
-                  onClick={() => deleteHistoryItem(i)}
-                  className="bg-blue-500 hover:bg-blue-700 text-white p-3 sm:p-1.75 rounded-xl sm:rounded min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center transition-all transform active:scale-95 sm:active:scale-100"
-                  title="Hesaplamayı Sil"
+                <TouchableOpacity
+                  style={styles.deleteButton}
+                  onPress={() => deleteHistoryItem(i)}
+                  activeOpacity={0.7}
                 >
-                  <span className="text-base sm:text-xs">Sil</span>
-                </button>
-              </div>
+                  <Text style={styles.deleteButtonText}>Sil</Text>
+                </TouchableOpacity>
+              </View>
 
               {/* Net Kazanç - Ana Vurgu */}
-              <div className="bg-green-100 border border-green-300 rounded-lg p-3 sm:p-2 mb-4 sm:mb-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-base sm:text-sm font-semibold text-green-800">
-                    Net Kazanç:
-                  </span>
-                  <span className="text-xl sm:text-lg font-bold text-green-800">
+              <View style={styles.netIncomeContainer}>
+                <View style={styles.netIncomeRow}>
+                  <Text style={styles.netIncomeLabel}>Net Kazanç:</Text>
+                  <Text style={styles.netIncomeValue}>
                     {format(item.netKazanc)} ₺
-                  </span>
-                </div>
-              </div>
+                  </Text>
+                </View>
+              </View>
 
               {/* Ana Bilgiler - Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-2 mb-4 sm:mb-3">
-                <div className="bg-blue-50 p-3 sm:p-2 rounded-lg">
-                  <p className="text-sm sm:text-xs text-blue-600 mb-1">
-                    Hakediş:
-                  </p>
-                  <p className="text-lg sm:text-base font-bold text-blue-800">
-                    {format(item.income)} ₺
-                  </p>
-                </div>
+              <View style={styles.infoGrid}>
+                <View style={[styles.infoCard, styles.incomeCard]}>
+                  <Text style={styles.infoCardLabel}>Hakediş:</Text>
+                  <Text style={styles.infoCardValue}>{format(item.income)} ₺</Text>
+                </View>
 
-                <div className="bg-red-50 p-3 sm:p-2 rounded-lg">
-                  <p className="text-sm sm:text-xs text-red-600 mb-1">
-                    Masraflar:
-                  </p>
-                  <p className="text-lg sm:text-base font-bold text-red-800">
-                    {format(item.totalExpenses)} ₺
-                  </p>
-                </div>
+                <View style={[styles.infoCard, styles.expenseCard]}>
+                  <Text style={styles.infoCardLabel}>Masraflar:</Text>
+                  <Text style={styles.infoCardValue}>{format(item.totalExpenses)} ₺</Text>
+                </View>
 
-                <div className="bg-yellow-50 p-3 sm:p-2 rounded-lg">
-                  <p className="text-sm sm:text-xs text-yellow-600 mb-1">
-                    Ödenecek KDV:
-                  </p>
-                  <p className="text-lg sm:text-base font-bold text-yellow-800">
-                    {format(item.odenecekKdv)} ₺
-                  </p>
-                </div>
+                <View style={[styles.infoCard, styles.kdvCard]}>
+                  <Text style={styles.infoCardLabel}>Ödenecek KDV:</Text>
+                  <Text style={styles.infoCardValue}>{format(item.odenecekKdv)} ₺</Text>
+                </View>
 
-                <div className="bg-purple-50 p-3 sm:p-2 rounded-lg">
-                  <p className="text-sm sm:text-xs text-purple-600 mb-1">
-                    Gelir Vergisi:
-                  </p>
-                  <p className="text-lg sm:text-base font-bold text-purple-800">
-                    {format(item.gelirVergisi)} ₺
-                  </p>
-                </div>
-              </div>
+                <View style={[styles.infoCard, styles.taxCard]}>
+                  <Text style={styles.infoCardLabel}>Gelir Vergisi:</Text>
+                  <Text style={styles.infoCardValue}>{format(item.gelirVergisi)} ₺</Text>
+                </View>
+              </View>
 
               {/* Toplam Vergi */}
-              <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 sm:p-2 mb-4 sm:mb-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-base sm:text-sm font-semibold text-gray-700">
-                    Toplam Vergi:
-                  </span>
-                  <span className="text-lg sm:text-base font-bold text-gray-800">
+              <View style={styles.totalTaxContainer}>
+                <View style={styles.totalTaxRow}>
+                  <Text style={styles.totalTaxLabel}>Toplam Vergi:</Text>
+                  <Text style={styles.totalTaxValue}>
                     {format(item.odenecekKdv + item.gelirVergisi)} ₺
-                  </span>
-                </div>
-              </div>
+                  </Text>
+                </View>
+              </View>
 
-              {/* Masraf detayları varsa göster */}
+              {/* Masraf Detayları */}
               {item.expenses && item.expenses.length > 0 && (
-                <details className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                  <summary className="flex justify-between items-center p-3 sm:p-2 cursor-pointer hover:bg-gray-100 transition-colors sm:text-sm  md:text-sm font-bold md:font-medium text-blue-500">
-                    Masraf Detayları
-                    <span className="text-right  md:text-xs text-gray-500 bg-gray-100 px-2 py-0.5 md:px-2 md:py-0.5 rounded-full font-medium ">
-                      {item.expenses.length} kalem
-                    </span>
-                  </summary>
+                <View style={styles.expenseDetailsContainer}>
+                  <TouchableOpacity
+                    style={styles.expenseDetailsHeader}
+                    onPress={() => toggleExpand(i)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.expenseDetailsTitle}>Masraf Detayları</Text>
+                    <View style={styles.expenseCount}>
+                      <Text style={styles.expenseCountText}>
+                        {item.expenses.length} kalem
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
 
-                  <div className="px-3 sm:px-2 pb-3 sm:pb-2 border-t border-gray-200 pt-3 sm:pt-2">
-                    <div className="space-y-2 sm:space-y-1">
+                  {expandedItems[i] && (
+                    <View style={styles.expenseDetailsContent}>
                       {item.expenses.map((expense, idx) => (
-                        <div
-                          key={idx}
-                          className="flex justify-between items-center py-1"
-                        >
-                          <span className="text-sm sm:text-xs text-gray-700">
-                            {expense.name}
+                        <View key={idx} style={styles.expenseDetailItem}>
+                          <View style={styles.expenseDetailLeft}>
+                            <Text style={styles.expenseDetailName}>
+                              {expense.name}
+                            </Text>
                             {expense.kdvRate > 0 && (
-                              <span className="text-xs text-gray-500 ml-1">
+                              <Text style={styles.expenseDetailKdv}>
                                 (KDV: %{expense.kdvRate})
-                              </span>
+                              </Text>
                             )}
-                          </span>
-                          <span className="text-sm sm:text-xs font-medium text-gray-800">
+                          </View>
+                          <Text style={styles.expenseDetailAmount}>
                             {format(expense.amount)} ₺
-                          </span>
-                        </div>
+                          </Text>
+                        </View>
                       ))}
-                    </div>
-                  </div>
-                </details>
+                    </View>
+                  )}
+                </View>
               )}
 
-              {/* Performans göstergesi */}
-              <div className="mt-3 sm:mt-2 flex justify-between items-center text-sm sm:text-xs text-gray-500 bg-gray-100 border border-gray-300 rounded-lg p-3 sm:p-2 mb-4 sm:mb-3">
-                <span>Kar Marjı:</span>
-                <span className="font-semibold">
+              {/* Performans Göstergesi */}
+              <View style={styles.performanceContainer}>
+                <Text style={styles.performanceLabel}>Kar Marjı:</Text>
+                <Text style={styles.performanceValue}>
                   {item.income > 0
                     ? `${((item.netKazanc / item.income) * 100).toFixed(1)}%`
-                    : "0%"}
-                </span>
-              </div>
-            </div>
+                    : '0%'}
+                </Text>
+              </View>
+            </View>
           ))}
-        </div>
+        </ScrollView>
       )}
 
-      {/* Temizle butonu - sadece kayıt varsa göster */}
+      {/* Temizle Butonu */}
       {history.length > 0 && (
-        <div className="mt-6 sm:mt-4 space-y-3 sm:space-y-2">
-          <button
-            onClick={() => {
-              if (confirm("Tüm geçmişi silmek istediğinizden emin misiniz?")) {
-                setHistory([]);
-                localStorage.removeItem("cargoCalcHistory");
-              }
-            }}
-            className="w-full bg-red-500 hover:bg-red-600 text-white px-4 sm:px-3 py-3 sm:py-2 rounded-xl sm:rounded-lg text-base sm:text-sm font-semibold sm:font-medium transition-all transform active:scale-95 sm:active:scale-100"
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.clearAllButton}
+            onPress={clearAllHistory}
+            activeOpacity={0.8}
           >
-            Tüm Geçmişi Temizle
-          </button>
+            <Text style={styles.clearAllButtonText}>Tüm Geçmişi Temizle</Text>
+          </TouchableOpacity>
 
-          {/* İstatistik */}
-          <div className="text-center text-sm sm:text-xs text-gray-500">
+          <Text style={styles.statsText}>
             Toplam {history.length} hesaplama kaydı.
-          </div>
-        </div>
+          </Text>
+        </View>
       )}
 
-      {/* Mobil ipucu */}
-      <div className="block mt-4 bg-gray-50 border border-gray-200 rounded-xl p-3">
-        <div className="text-gray-600 text-sm ">
-          <p className="font-medium mb-1">İpucu:</p>
-          <p>
-            Masraf detaylarını görmek için "Masraf Detayları" bölümüne dokunun.
-          </p>
-        </div>
-      </div>
-    </div>
+      {/* İpucu */}
+      <View style={styles.tipContainer}>
+        <Text style={styles.tipTitle}>💡 İpucu:</Text>
+        <Text style={styles.tipText}>
+          Masraf detaylarını görmek için "Masraf Detayları" bölümüne dokunun.
+        </Text>
+      </View>
+    </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 16,
+  },
+  
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  
+  // History List
+  historyList: {
+    maxHeight: 600,
+  },
+  historyItem: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  
+  // Header Row
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  dateContainer: {
+    flex: 1,
+  },
+  shortDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  fullDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  deleteButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // Net Income
+  netIncomeContainer: {
+    backgroundColor: '#D1FAE5',
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  netIncomeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  netIncomeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#065F46',
+  },
+  netIncomeValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#065F46',
+  },
+  
+  // Info Grid
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -6,
+    marginBottom: 16,
+  },
+  infoCard: {
+    width: '50%',
+    paddingHorizontal: 6,
+    marginBottom: 12,
+  },
+  incomeCard: {
+    backgroundColor: '#DBEAFE',
+    borderRadius: 8,
+    padding: 12,
+  },
+  expenseCard: {
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    padding: 12,
+  },
+  kdvCard: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 12,
+  },
+  taxCard: {
+    backgroundColor: '#E9D5FF',
+    borderRadius: 8,
+    padding: 12,
+  },
+  infoCardLabel: {
+    fontSize: 12,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  infoCardValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  
+  // Total Tax
+  totalTaxContainer: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  totalTaxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalTaxLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  totalTaxValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  
+  // Expense Details
+  expenseDetailsContainer: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  expenseDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  expenseDetailsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  expenseCount: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  expenseCountText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  expenseDetailsContent: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    padding: 12,
+  },
+  expenseDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+  },
+  expenseDetailLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  expenseDetailName: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  expenseDetailKdv: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  expenseDetailAmount: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  
+  // Performance
+  performanceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+  },
+  performanceLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  performanceValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  
+  // Footer
+  footer: {
+    marginTop: 16,
+  },
+  clearAllButton: {
+    backgroundColor: '#EF4444',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  clearAllButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statsText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  
+  // Tip
+  tipContainer: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 16,
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+});
 
 export default HistoryList;
