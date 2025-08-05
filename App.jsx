@@ -24,16 +24,8 @@ export const useAppContext = () => {
   return context;
 };
 
-// Tab Sayfaları (şimdilik placeholder)
-const DataInputPage = () => (
-  <View style={styles.page}>
-    <Text style={styles.pageTitle}>Hakediş Girişi</Text>
-    <Text style={styles.pageDesc}>Hakediş, masraflar ve sabit giderler</Text>
-    <View style={styles.placeholder}>
-      <Text style={styles.placeholderText}>IncomeInput + AddExpenseForm + ExpenseList + FixedExpenses</Text>
-    </View>
-  </View>
-);
+// Tab Sayfaları - DataInputPage'i import edecek
+import DataInputPage from './pages/DataInputPage';
 
 const ResultsPage = () => (
   <View style={styles.page}>
@@ -180,22 +172,42 @@ export default function App() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image
-              source={require('./public/apple-touch-icon.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </View>
-
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>CargoCalc</Text>
-            <Text style={styles.subtitle}>
-              {activeTab !== null ? tabs[activeTab].title : 'Nakliye Hesaplama Aracı'}
-            </Text>
-          </View>
+        {/* Header - Dinamik Tasarım */}
+        <View style={activeTab !== null ? styles.headerCompact : styles.headerLanding}>
+          {activeTab !== null ? (
+            // Kompakt Header - Navigator Sayfaları
+            <View style={styles.headerContent}>
+              <Image 
+                source={require('./public/apple-touch-icon.png')} 
+                style={styles.logoImageSmall}
+                resizeMode="contain"
+              />
+              <View style={styles.titleContainer}>
+                <Text style={styles.titleSmall}>CargoCalc</Text>
+                <Text style={styles.subtitleSmall}>
+                  {tabs[activeTab].title}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            // Büyük Header - Landing Page
+            <>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('./public/apple-touch-icon.png')}
+                  style={styles.logoImageLarge}
+                  resizeMode="contain"
+                />
+              </View>
+              
+              <View style={styles.titleContainerLanding}>
+                <Text style={styles.titleLarge}>CargoCalc</Text>
+                <Text style={styles.subtitleLarge}>
+                  Nakliye Hesaplama Aracı
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Page Content */}
@@ -242,7 +254,7 @@ export default function App() {
                   key={index}
                   style={[
                     styles.progressDot,
-                    activeTab >= index && styles.progressDotActive
+                    activeTab == index && styles.progressDotActive
                   ]}
                 />
               ))}
@@ -260,8 +272,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
 
-  // Header
-  header: {
+  // Header - Dinamik Tasarım
+  // Landing Page Header (Büyük)
+  headerLanding: {
     backgroundColor: '#ffffff',
     padding: 20,
     borderBottomWidth: 1,
@@ -276,21 +289,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  logoImage: {
+  logoImageLarge: {
     width: 125,
     height: 125,
   },
-  titleContainer: {
+  titleContainerLanding: {
     alignItems: 'center',
   },
-  title: {
+  titleLarge: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1D4ED8',
     marginBottom: 4,
   },
-  subtitle: {
+  subtitleLarge: {
     fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+
+  // Navigator Pages Header (Kompakt)
+  headerCompact: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoImageSmall: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
+  titleContainer: {
+    flex: 1,
+  },
+  titleSmall: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1D4ED8',
+    marginBottom: 2,
+  },
+  subtitleSmall: {
+    fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
   },
