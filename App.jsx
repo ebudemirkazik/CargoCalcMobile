@@ -1,166 +1,256 @@
-// App.jsx - React Native Version with Real Logo Assets
-import React, { useState } from 'react';
+// App.jsx - React Native Navigation Infrastructure
+import React, { useState, createContext, useContext } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   StatusBar,
   SafeAreaView,
   TouchableOpacity,
-  Alert,
   Dimensions,
   Image,
 } from 'react-native';
-import IncomeInput from './components/IncomeInput';
-import AddExpenseForm from './components/AddExpenseForm';
-import ExpenseDonutChart from './components/ExpenseDonutChart';
-import FixedExpenses from './components/FixedExpenses';
-import ExpenseList from './components/ExpenseList';
-import Summary from './components/Summary';
-import HistoryList from './components/HistoryList';
-import MockStorage from './utils/MockStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
-const isTablet = screenWidth >= 768;
 
+// Global State Context
+const AppContext = createContext();
+
+export const useAppContext = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useAppContext must be used within AppProvider');
+  }
+  return context;
+};
+
+// Tab Sayfaları (şimdilik placeholder)
+const DataInputPage = () => (
+  <View style={styles.page}>
+    <Text style={styles.pageTitle}>Hakediş Girişi</Text>
+    <Text style={styles.pageDesc}>Hakediş, masraflar ve sabit giderler</Text>
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderText}>IncomeInput + AddExpenseForm + ExpenseList + FixedExpenses</Text>
+    </View>
+  </View>
+);
+
+const ResultsPage = () => (
+  <View style={styles.page}>
+    <Text style={styles.pageTitle}>📊 Hesaplama & Sonuçlar</Text>
+    <Text style={styles.pageDesc}>Vergi hesaplamaları ve görsel analiz</Text>
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderText}>Summary + ExpenseDonutChart + Kaydet Butonu</Text>
+    </View>
+  </View>
+);
+
+const HistoryPage = () => (
+  <View style={styles.page}>
+    <Text style={styles.pageTitle}>📋 Geçmiş & Analiz</Text>
+    <Text style={styles.pageDesc}>Kayıtlı hesaplamalar ve trendler</Text>
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderText}>HistoryList + Trend Charts</Text>
+    </View>
+  </View>
+);
+
+// Ana App Component
 export default function App() {
+  // Global State
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState([]);
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
 
+  // Tab Navigation State - başlangıçta null (landing page)
+  const [activeTab, setActiveTab] = useState(null);
+
+  // Tab Configuration
+  const tabs = [
+    {
+      id: 0,
+      name: 'Gelir & Gider',
+      icon: '📝',
+      component: DataInputPage,
+      title: 'Gelir & Gider'
+    },
+    {
+      id: 1,
+      name: 'Hesaplama',
+      icon: '📊',
+      component: ResultsPage,
+      title: 'Sonuçlar'
+    },
+    {
+      id: 2,
+      name: 'Geçmiş',
+      icon: '📋',
+      component: HistoryPage,
+      title: 'Geçmiş'
+    }
+  ];
+
+  // Global State Functions
   const handleAddExpense = (newExpense) => {
     const expenseWithId = {
       ...newExpense,
       id: Date.now(),
     };
-
     setExpenses(prev => [...prev, expenseWithId]);
   };
 
   const handleDeleteExpense = (id) => {
-    console.log('App.jsx handleDeleteExpense çağrıldı, ID:', id);
-    console.log('Mevcut expenses:', expenses);
-    
-    const updatedExpenses = expenses.filter(expense => expense.id !== id);
-    console.log('Güncellenmiş expenses:', updatedExpenses);
-    
-    setExpenses(updatedExpenses);
-    
-    // Başarılı silme mesajı (opsiyonel)
-    console.log('Masraf silindi, yeni liste uzunluğu:', updatedExpenses.length);
+    setExpenses(prev => prev.filter(expense => expense.id !== id));
   };
 
-  // Sabit giderleri güncelle - Artık otomatik çağrılmayacak
   const handleFixedExpensesChange = (monthlyFixedExpenses) => {
-    console.log('handleFixedExpensesChange çağrıldı (artık otomatik değil):', monthlyFixedExpenses);
     setFixedExpenses(monthlyFixedExpenses);
   };
 
-  // Sabit gideri manuel masraflara ekle
   const handleAddToManualExpenses = (fixedExpense) => {
     setExpenses(prev => [...prev, fixedExpense]);
   };
 
-  // History refresh trigger fonksiyonu
   const refreshHistory = () => {
     setHistoryRefreshTrigger(prev => prev + 1);
   };
 
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const numericIncome = parseFloat(income) || 0;
-  const netIncome = numericIncome - totalExpenses;
+  // Context Value
+  const contextValue = {
+    // State
+    income,
+    expenses,
+    fixedExpenses,
+    historyRefreshTrigger,
 
-  const formatCurrency = (amount) => {
-    return amount.toLocaleString('tr-TR') + ' ₺';
+    // Actions
+    setIncome,
+    handleAddExpense,
+    handleDeleteExpense,
+    handleFixedExpensesChange,
+    handleAddToManualExpenses,
+    refreshHistory,
+
+    // Navigation
+    setActiveTab,
   };
 
+  // Landing Page Component
+  const LandingPage = () => (
+    <View style={styles.landingPage}>
+      <View style={styles.landingContent}>
+        <Text style={styles.landingTitle}>Hoş Geldiniz!</Text>
+        <Text style={styles.landingDescription}>
+          CargoCalc ile nakliye işlerinizin hakediş ve vergi hesaplamalarını
+          kolayca yapabilirsiniz.
+        </Text>
+
+        <View style={styles.featuresContainer}>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>💰</Text>
+            <Text style={styles.featureText}>KDV İndirimi Hesaplama</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>📊</Text>
+            <Text style={styles.featureText}>Gelir Vergisi Analizi</Text>
+          </View>
+          <View style={styles.featureItem}>
+            <Text style={styles.featureIcon}>💾</Text>
+            <Text style={styles.featureText}>Hesaplama Geçmişi</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => setActiveTab(0)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.startButtonText}>Hesaplamaya Başla</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // Aktif sayfa component'i
+  const ActivePageComponent = activeTab !== null ? tabs[activeTab].component : LandingPage;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Header - Gerçek Logo Assets */}
+    <AppContext.Provider value={contextValue}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image 
-              source={require('./public/apple-touch-icon.png')} 
+            <Image
+              source={require('./public/apple-touch-icon.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />
           </View>
-          
+
           <View style={styles.titleContainer}>
             <Text style={styles.title}>CargoCalc</Text>
-            <Text style={styles.subtitle}>Nakliyeciler için Hakediş ve Vergi Hesaplama Aracı</Text>
-            <Text style={styles.description}>
-              KDV indirimi, net kazanç ve sabit masraflar dahil tüm hesaplamaları akıllı şekilde yapın.
+            <Text style={styles.subtitle}>
+              {activeTab !== null ? tabs[activeTab].title : 'Nakliye Hesaplama Aracı'}
             </Text>
           </View>
         </View>
 
-        {/* Hakediş Input - Real Component */}
-        <IncomeInput income={parseFloat(income) || 0} setIncome={setIncome} />
-
-        {/* Masraf Ekleme - Real Component */}
-        <AddExpenseForm onAddExpense={handleAddExpense} />
-
-        {/* Masraf Dağılımı Grafiği - Real Component */}
-        <ExpenseDonutChart expenses={expenses} />
-
-        {/* Yıllık Sabit Giderler - MockStorage ile */}
-        <FixedExpenses 
-          onFixedExpensesChange={handleFixedExpensesChange}
-          onAddToManualExpenses={handleAddToManualExpenses}
-        />
-
-        {/* Masraf Listesi - Real Component */}
-        <ExpenseList 
-          expenses={expenses}
-          fixedExpenses={fixedExpenses}
-          onDeleteExpense={handleDeleteExpense}
-        />
-
-        {/* Summary Component - Vergi Hesaplamaları ile */}
-        <Summary 
-          income={numericIncome}
-          expenses={expenses}
-          fixedExpenses={fixedExpenses}
-          onHistorySaved={refreshHistory}
-        />
-
-        {/* History List Component */}
-        <HistoryList refreshTrigger={historyRefreshTrigger} />
-
-        {/* Test Durumu Göstergesi */}
-        <View style={styles.testCard}>
-          <Text style={styles.testTitle}>🧪 Test Durumu</Text>
-          <Text style={styles.testText}>
-            ✅ IncomeInput Component: Aktif{'\n'}
-            ✅ AddExpenseForm Component: Aktif{'\n'}
-            ✅ ExpenseDonutChart Component: Aktif{'\n'}
-            ✅ FixedExpenses Component: Aktif{'\n'}
-            ✅ ExpenseList Component: Aktif{'\n'}
-            ✅ Summary Component: Aktif (Vergi Hesaplamalı){'\n'}
-            ✅ HistoryList Component: Aktif{'\n'}
-            ✅ Tüm componentler entegre edildi!
-          </Text>
-          <Text style={styles.testNote}>
-            Income: {income} | Expenses: {expenses.length} adet | Fixed: {fixedExpenses.length} adet
-          </Text>
+        {/* Page Content */}
+        <View style={styles.content}>
+          <ActivePageComponent />
         </View>
 
-        {/* Footer Uyarı */}
-        <View style={styles.footer}>
-          <Text style={styles.footerIcon}>⚠️</Text>
-          <Text style={styles.footerText}>
-            Bu hesaplama aracı sadece genel bilgi amaçlıdır. 
-            Gerçek vergi hesaplamaları için muhasebeci ile görüşünüz.
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        {/* Bottom Tab Navigation - Sadece sayfalardayken göster */}
+        {activeTab !== null && (
+          <View style={styles.tabBar}>
+            {tabs.map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={[
+                  styles.tabButton,
+                  activeTab === tab.id && styles.tabButtonActive
+                ]}
+                onPress={() => setActiveTab(tab.id)}
+                activeOpacity={0.7}
+              >
+                <Text style={[
+                  styles.tabIcon,
+                  activeTab === tab.id && styles.tabIconActive
+                ]}>
+                  {tab.icon}
+                </Text>
+                <Text style={[
+                  styles.tabLabel,
+                  activeTab === tab.id && styles.tabLabelActive
+                ]}>
+                  {tab.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Progress Indicator - Sadece sayfalardayken göster */}
+        {activeTab !== null && (
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              {tabs.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.progressDot,
+                    activeTab >= index && styles.progressDotActive
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+      </SafeAreaView>
+    </AppContext.Provider>
   );
 }
 
@@ -169,19 +259,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  
-  // Header - Gerçek Logo Assets
+
+  // Header
   header: {
     backgroundColor: '#ffffff',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 16,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -190,15 +274,12 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   logoImage: {
-    width: 128,
-    height: 128,
-    marginBottom: 2,
+    width: 125,
+    height: 125,
   },
-  
-  // Title Container
   titleContainer: {
     alignItems: 'center',
   },
@@ -206,87 +287,190 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1D4ED8',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#374151',
-    textAlign: 'center',
-    marginBottom: 8,
-    fontWeight: '600',
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  description: {
-    fontSize: 13,
+
+  // Content
+  content: {
+    flex: 1,
+  },
+
+  // Pages (Placeholder)
+  page: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  pageDesc: {
+    fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: 16,
+    marginBottom: 32,
   },
-  
-  // Card
-  card: {
+  placeholder: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 2,
+    borderColor: '#BFDBFE',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 300,
+  },
+  placeholderText: {
+    fontSize: 14,
+    color: '#3B82F6',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingBottom: 8,
+    paddingTop: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 5,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 16,
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
-  
-  // Test Card
-  testCard: {
-    backgroundColor: '#F0F9FF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+  tabButtonActive: {
+    // Active state handled by individual elements
   },
-  testTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1E40AF',
-    marginBottom: 8,
+  tabIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+    opacity: 0.6,
   },
-  testText: {
-    fontSize: 14,
-    color: '#1E40AF',
-    lineHeight: 20,
-    marginBottom: 8,
+  tabIconActive: {
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
   },
-  testNote: {
+  tabLabel: {
     fontSize: 12,
     color: '#6B7280',
-    fontStyle: 'italic',
+    fontWeight: '500',
+    textAlign: 'center',
   },
-  
-  // Footer
-  footer: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 12,
-    padding: 16,
+  tabLabelActive: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+
+  // Progress Bar
+  progressContainer: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  progressBar: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 16,
+    alignItems: 'center',
   },
-  footerIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  progressDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 4,
   },
-  footerText: {
+  progressDotActive: {
+    backgroundColor: '#3B82F6',
+    transform: [{ scale: 1.2 }],
+  },
+
+  // Landing Page
+  landingPage: {
     flex: 1,
-    fontSize: 14,
-    color: '#92400E',
-    lineHeight: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#F8FAFC',
+  },
+  landingContent: {
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+  },
+  landingTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1D4ED8',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  landingDescription: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  featuresContainer: {
+    width: '100%',
+    marginBottom: 32,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  featureIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  featureText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  startButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
