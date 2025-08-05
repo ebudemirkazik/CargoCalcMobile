@@ -1,5 +1,5 @@
-// App.jsx - React Native Navigation Infrastructure
-import React, { useState, createContext, useContext } from 'react';
+// App.jsx - Enhanced with Loading States & Error Handling
+import React, { useState, createContext, useContext, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   Dimensions,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -37,8 +39,10 @@ export default function App() {
   const [fixedExpenses, setFixedExpenses] = useState([]);
   const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
 
-  // Tab Navigation State - başlangıçta null (landing page)
+  // UI State
   const [activeTab, setActiveTab] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Tab Configuration
   const tabs = [
@@ -65,29 +69,110 @@ export default function App() {
     }
   ];
 
-  // Global State Functions
-  const handleAddExpense = (newExpense) => {
-    const expenseWithId = {
-      ...newExpense,
-      id: Date.now(),
-    };
-    setExpenses(prev => [...prev, expenseWithId]);
+  // App initialization
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Simulated app initialization
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // App ready
+      setIsLoading(false);
+    } catch (error) {
+      console.error('App initialization error:', error);
+      setError('Uygulama başlatılırken bir hata oluştu.');
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteExpense = (id) => {
-    setExpenses(prev => prev.filter(expense => expense.id !== id));
+  // Enhanced State Functions with Loading & Error Handling
+  const handleAddExpense = async (newExpense) => {
+    try {
+      const expenseWithId = {
+        ...newExpense,
+        id: Date.now(),
+      };
+      setExpenses(prev => [...prev, expenseWithId]);
+      return { success: true };
+    } catch (error) {
+      console.error('Add expense error:', error);
+      Alert.alert('Hata!', 'Masraf eklenirken bir hata oluştu.');
+      return { success: false, error };
+    }
+  };
+
+  const handleDeleteExpense = async (id) => {
+    try {
+      setExpenses(prev => prev.filter(expense => expense.id !== id));
+      return { success: true };
+    } catch (error) {
+      console.error('Delete expense error:', error);
+      Alert.alert('Hata!', 'Masraf silinirken bir hata oluştu.');
+      return { success: false, error };
+    }
   };
 
   const handleFixedExpensesChange = (monthlyFixedExpenses) => {
-    setFixedExpenses(monthlyFixedExpenses);
+    try {
+      setFixedExpenses(monthlyFixedExpenses);
+    } catch (error) {
+      console.error('Fixed expenses update error:', error);
+      Alert.alert('Hata!', 'Sabit giderler güncellenirken bir hata oluştu.');
+    }
   };
 
-  const handleAddToManualExpenses = (fixedExpense) => {
-    setExpenses(prev => [...prev, fixedExpense]);
+  const handleAddToManualExpenses = async (fixedExpense) => {
+    try {
+      setExpenses(prev => [...prev, fixedExpense]);
+      return { success: true };
+    } catch (error) {
+      console.error('Add to manual expenses error:', error);
+      Alert.alert('Hata!', 'Manuel masraflara eklenirken bir hata oluştu.');
+      return { success: false, error };
+    }
   };
 
   const refreshHistory = () => {
-    setHistoryRefreshTrigger(prev => prev + 1);
+    try {
+      setHistoryRefreshTrigger(prev => prev + 1);
+    } catch (error) {
+      console.error('Refresh history error:', error);
+    }
+  };
+
+  // Enhanced Navigation with Validation
+  const handleTabChange = (tabId) => {
+    try {
+      // Validation logic
+      if (tabId === 1 && income <= 0) {
+        Alert.alert(
+          'Eksik Bilgi',
+          'Hesaplama yapmak için önce hakediş tutarını girmeniz gerekiyor.',
+          [
+            { text: 'Tamam', style: 'default' },
+            { text: 'Veri Girişine Git', onPress: () => setActiveTab(0) }
+          ]
+        );
+        return;
+      }
+
+      setActiveTab(tabId);
+    } catch (error) {
+      console.error('Tab change error:', error);
+      Alert.alert('Hata!', 'Sayfa değiştirilirken bir hata oluştu.');
+    }
+  };
+
+  // Error Recovery
+  const handleRetry = () => {
+    setError(null);
+    initializeApp();
   };
 
   // Context Value
@@ -97,6 +182,8 @@ export default function App() {
     expenses,
     fixedExpenses,
     historyRefreshTrigger,
+    isLoading,
+    error,
 
     // Actions
     setIncome,
@@ -107,8 +194,67 @@ export default function App() {
     refreshHistory,
 
     // Navigation
-    setActiveTab,
+    setActiveTab: handleTabChange,
+    
+    // UI Actions
+    setError,
   };
+
+  // Loading Screen
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.loadingContainer}>
+          {/* Logo */}
+          <Image
+            source={require('./public/apple-touch-icon.png')}
+            style={styles.loadingLogo}
+            resizeMode="contain"
+          />
+          
+          {/* App Name */}
+          <Text style={styles.loadingTitle}>CargoCalc</Text>
+          <Text style={styles.loadingSubtitle}>Nakliye Hesaplama Aracı</Text>
+          
+          {/* Loading Indicator */}
+          <View style={styles.loadingIndicatorContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Uygulama başlatılıyor...</Text>
+          </View>
+          
+          {/* Loading Steps */}
+          <View style={styles.loadingSteps}>
+            <Text style={styles.loadingStep}>✓ Componentler yükleniyor</Text>
+            <Text style={styles.loadingStep}>✓ Veriler kontrol ediliyor</Text>
+            <Text style={styles.loadingStep}>⏳ Hazırlanıyor...</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Error Screen
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Bir Hata Oluştu</Text>
+          <Text style={styles.errorMessage}>{error}</Text>
+          
+          <TouchableOpacity 
+            style={styles.retryButton}
+            onPress={handleRetry}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.retryButtonText}>🔄 Tekrar Dene</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Landing Page Component
   const LandingPage = () => (
@@ -137,7 +283,7 @@ export default function App() {
 
         <TouchableOpacity
           style={styles.startButton}
-          onPress={() => setActiveTab(0)}
+          onPress={() => handleTabChange(0)}
           activeOpacity={0.8}
         >
           <Text style={styles.startButtonText}>Hesaplamaya Başla</Text>
@@ -207,7 +353,7 @@ export default function App() {
                   styles.tabButton,
                   activeTab === tab.id && styles.tabButtonActive
                 ]}
-                onPress={() => setActiveTab(tab.id)}
+                onPress={() => handleTabChange(tab.id)}
                 activeOpacity={0.7}
               >
                 <Text style={[
@@ -252,6 +398,86 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+
+  // Loading Screen
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    backgroundColor: '#ffffff',
+  },
+  loadingLogo: {
+    width: 100,
+    height: 100,
+    marginBottom: 24,
+  },
+  loadingTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1D4ED8',
+    marginBottom: 8,
+  },
+  loadingSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 40,
+  },
+  loadingIndicatorContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#374151',
+    marginTop: 16,
+  },
+  loadingSteps: {
+    alignItems: 'flex-start',
+  },
+  loadingStep: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+
+  // Error Screen
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  errorIcon: {
+    fontSize: 64,
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#EF4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  retryButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
   // Header - Dinamik Tasarım
@@ -332,43 +558,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Pages (Placeholder)
-  page: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  pageDesc: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  placeholder: {
-    backgroundColor: '#EFF6FF',
-    borderWidth: 2,
-    borderColor: '#BFDBFE',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: 24,
-    width: '100%',
-    maxWidth: 300,
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: '#3B82F6',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-
   // Tab Bar - Kompakt
   tabBar: {
     flexDirection: 'row',
@@ -393,16 +582,16 @@ const styles = StyleSheet.create({
     // Active state handled by individual elements
   },
   tabIcon: {
-    fontSize: 20, // 24 → 20
-    marginBottom: 2, // 4 → 2
+    fontSize: 20,
+    marginBottom: 2,
     opacity: 0.6,
   },
   tabIconActive: {
     opacity: 1,
-    transform: [{ scale: 1.05 }], // 1.1 → 1.05
+    transform: [{ scale: 1.05 }],
   },
   tabLabel: {
-    fontSize: 10, // 12 → 10
+    fontSize: 10,
     color: '#6B7280',
     fontWeight: '500',
     textAlign: 'center',
@@ -415,7 +604,7 @@ const styles = StyleSheet.create({
   // Progress Bar - Kompakt
   progressContainer: {
     backgroundColor: '#ffffff',
-    paddingVertical: 4, // 8 → 4
+    paddingVertical: 4,
     alignItems: 'center',
   },
   progressBar: {
@@ -423,15 +612,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressDot: {
-    width: 6, // 8 → 6
-    height: 6, // 8 → 6
-    borderRadius: 3, // 4 → 3
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#D1D5DB',
-    marginHorizontal: 3, // 4 → 3
+    marginHorizontal: 3,
   },
   progressDotActive: {
     backgroundColor: '#3B82F6',
-    transform: [{ scale: 1.15 }], // 1.2 → 1.15
+    transform: [{ scale: 1.15 }],
   },
 
   // Landing Page
