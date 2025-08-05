@@ -39,7 +39,16 @@ export default function App() {
   };
 
   const handleDeleteExpense = (id) => {
-    setExpenses(prev => prev.filter(expense => expense.id !== id));
+    console.log('App.jsx handleDeleteExpense çağrıldı, ID:', id);
+    console.log('Mevcut expenses:', expenses);
+    
+    const updatedExpenses = expenses.filter(expense => expense.id !== id);
+    console.log('Güncellenmiş expenses:', updatedExpenses);
+    
+    setExpenses(updatedExpenses);
+    
+    // Başarılı silme mesajı (opsiyonel)
+    console.log('Masraf silindi, yeni liste uzunluğu:', updatedExpenses.length);
   };
 
   // Sabit giderleri güncelle - Artık otomatik çağrılmayacak
