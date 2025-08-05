@@ -37,6 +37,7 @@ const AddExpenseForm = ({ onAddExpense }) => {
       amount: parseFloat(expense.amount),
       kdvRate: parseFloat(expense.kdvRate),
       hasFatura: expense.hasFatura,
+      isHiddenFromVisible: expense.name.trim().toLowerCase() === 'fatura', // Gizli özellik
     };
 
     console.log('Yeni masraf ekleniyor:', newExpense);
@@ -232,6 +233,11 @@ const AddExpenseForm = ({ onAddExpense }) => {
                   ? `✅ Fatura var - KDV ${expense.kdvRate > 0 ? 'indirilebilir' : 'muaf'}`
                   : '❌ Fatura yok - KDV indirilemez'
                 }
+                {expense.name.trim().toLowerCase() === 'fatura' && (
+                  <Text style={styles.hiddenFeatureText}>
+                    {'\n'}🔒 Gizli özellik: Görünür masraflara eklenmeyecek
+                  </Text>
+                )}
               </Text>
             </View>
           </View>
@@ -433,6 +439,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#15803D',
     textAlign: 'center',
+  },
+  hiddenFeatureText: {
+    color: '#7C2D12',
+    fontWeight: '600',
   },
 
   // Submit Button

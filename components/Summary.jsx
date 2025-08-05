@@ -14,40 +14,51 @@ const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
 const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
-  // Hesaplamalar - Null Check'lerle güvenli
-  const totalExpenses = Array.isArray(expenses) ? expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0) : 0;
+  // Hesaplamalar - "Fatura" gizli özelliği ile
+  const visibleExpenses = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    // "Fatura" adlı masraflar görünür masraflara eklenmez
+    if (expense.isHiddenFromVisible || expense.name.toLowerCase() === 'fatura') return sum;
+    return sum + (expense.amount || 0);
+  }, 0) : 0;
+
+  const totalExpenses = visibleExpenses; // Sadece görünür masraflar
   const totalFixedExpenses = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => sum + (expense.monthlyAmount || 0), 0) : 0;
   const allExpenses = totalExpenses + totalFixedExpenses;
 
-  // KDV Hesaplamaları - Sadece faturalı masraflar için
+  // KDV Hesaplamaları - Tüm faturalı masraflar için (gizli olanlar dahil)
   const expenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
-    // Sadece fatura varsa KDV indirilebilir
     if (!expense.hasFatura) return sum;
-    
-    const kdvAmount = ((expense.amount || 0) * (expense.kdvRate || 0)) / 100;
+
+    const amount = expense.amount || 0;
+    const rate = expense.kdvRate || 0;
+    const kdvAmount = (amount * rate) / (100 + rate);
+
     return sum + kdvAmount;
   }, 0) : 0;
 
   const fixedExpenseKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
-    // Sabit giderler her zaman faturalı kabul ediliyor
-    const kdvAmount = ((expense.monthlyAmount || 0) * (expense.kdvRate || 0)) / 100;
+    const amount = expense.monthlyAmount || 0;
+    const rate = expense.kdvRate || 0;
+    const kdvAmount = (amount * rate) / (100 + rate);
+
     return sum + kdvAmount;
   }, 0) : 0;
 
   const toplamIndirilecekKdv = expenseKdv + fixedExpenseKdv;
 
-  // Gelir Vergisi Hesaplama - Sadece faturalı masraflar matrahtan düşülebilir
+  // Gelir Vergisi Hesaplama - Tüm faturalı masraflar matrahtan düşülebilir (gizli olanlar dahil)
   const faturaliMasraflar = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
-    // Sadece fatura varsa gelir vergisi matrahından düşülebilir
+    // Sadece fatura varsa gelir vergisi matrahından düşülebilir (gizli olsa bile)
     if (!expense.hasFatura) return sum;
     return sum + (expense.amount || 0);
   }, 0) : 0;
 
   const indirilebilirMasraflar = faturaliMasraflar + totalFixedExpenses; // Sabit giderler her zaman indirilebilir
-  
-  console.log('Vergi hesaplamaları:', {
-    totalExpenses: allExpenses,
-    faturaliMasraflar,
+
+  console.log('Vergi hesaplamaları (Fatura gizli özelliği ile):', {
+    totalExpenses: allExpenses, // Görünür masraflar
+    visibleExpenses,
+    faturaliMasraflar, // Tüm faturalı masraflar (gizli dahil)
     totalFixedExpenses,
     indirilebilirMasraflar,
     expenseKdv,
@@ -56,7 +67,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
   });
 
   // Gelir KDV'si (%20)
-  const gelirKdvsi = (income || 0) * 0.20;
+  const gelirKdvsi = (income || 0) * (0.20 / 1.20); //KDV dahil tutardan %20'lik kısmı çıkarıyoruz
   const odenecekKdv = Math.max(0, gelirKdvsi - toplamIndirilecekKdv);
 
   // Gelir Vergisi Hesaplama (KDV hariç gelir üzerinden)
@@ -109,17 +120,17 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
       const existingData = await MockStorage.getItem('cargoCalcHistory');
       const history = existingData ? JSON.parse(existingData) : [];
-      
+
       history.push(historyData);
-      
+
       await MockStorage.setItem('cargoCalcHistory', JSON.stringify(history));
-      
+
       Alert.alert(
         'Başarılı!',
         'Hesaplama geçmişe kaydedildi.',
         [{ text: 'Tamam' }]
       );
-      
+
       // Parent component'e bildir
       if (onHistorySaved) {
         onHistorySaved();
@@ -137,7 +148,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>📊 Finansal Özet</Text>
-      
+
       {/* Ana Özet Kartı */}
       <View style={styles.summaryCard}>
         {/* Hakediş */}
@@ -148,7 +159,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
             {format(income || 0)} ₺
           </Text>
         </View>
-        
+
         {/* Görünür Masraflar */}
         <View style={styles.summaryRow}>
           <View style={[styles.colorBar, styles.expenseBar]} />
@@ -163,7 +174,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
       <View style={styles.taxCard}>
         <Text style={styles.taxTitle}>Vergi Detayları</Text>
         <Text style={[styles.taxTotal, styles.negative]}>
-          -{format(toplamVergi)} ₺
+          {format(toplamVergi)} ₺
         </Text>
 
         <View style={styles.taxDetails}>
@@ -184,7 +195,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
           <View style={styles.taxRow}>
             <Text style={styles.taxLabel}>Ödenecek KDV:</Text>
             <Text style={[styles.taxValue, styles.negative]}>
-              -{format(odenecekKdv)} ₺
+              {format(odenecekKdv)} ₺
             </Text>
           </View>
 
@@ -205,7 +216,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
           <View style={styles.taxRow}>
             <Text style={styles.taxLabel}>Gelir Vergisi:</Text>
             <Text style={[styles.taxValue, styles.negative]}>
-              -{format(gelirVergisi)} ₺
+              {format(gelirVergisi)} ₺
             </Text>
           </View>
         </View>
@@ -217,7 +228,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
           Toplam Vergi Yükü (KDV + Gelir Vergisi):
         </Text>
         <Text style={[styles.totalTaxValue, styles.negative]}>
-          -{format(toplamVergi)} ₺
+          {format(toplamVergi)} ₺
         </Text>
       </View>
 
@@ -241,7 +252,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
       </View>
 
       {/* Kaydet Butonu */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.saveButton}
         onPress={saveToHistory}
         activeOpacity={0.8}
@@ -253,7 +264,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
       <View style={styles.warning}>
         <Text style={styles.warningIcon}>⚠️</Text>
         <Text style={styles.warningText}>
-          Bu hesaplamalar tahminidir. Gerçek vergi hesaplamaları için mutlaka 
+          Bu hesaplamalar tahminidir. Gerçek vergi hesaplamaları için mutlaka
           muhasebeci ile görüşünüz.
         </Text>
       </View>

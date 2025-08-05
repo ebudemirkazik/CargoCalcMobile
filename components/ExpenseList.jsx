@@ -42,18 +42,34 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
     return amount.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
   };
 
-  // Toplam hesaplamaları
-  const totalExpenseAmount = Array.isArray(expenses) ? expenses.reduce((sum, expense) => sum + (expense.amount || 0), 0) : 0;
-  const totalExpenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
-    const kdv = ((expense.amount || 0) * (expense.kdvRate || 0)) / 100;
-    return sum + kdv;
-  }, 0) : 0;
+  // Toplam hesaplamaları - Gizli masraflar ayrı
+  const visibleExpenses = Array.isArray(expenses) ? expenses.filter(expense => 
+    !expense.isHiddenFromVisible && expense.name.toLowerCase() !== 'fatura'
+  ) : [];
+  
+  const hiddenExpenses = Array.isArray(expenses) ? expenses.filter(expense => 
+    expense.isHiddenFromVisible || expense.name.toLowerCase() === 'fatura'
+  ) : [];
+
+  const totalExpenseAmount = visibleExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
+ const totalExpenseKdv = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+  if (!expense.hasFatura) return sum;
+
+  const rate = expense.kdvRate || 0;
+  const amount = expense.amount || 0;
+  const kdv = (amount * rate) / (100 + rate);
+
+  return sum + kdv;
+}, 0) : 0;
 
   const totalFixedAmount = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => sum + (expense.monthlyAmount || 0), 0) : 0;
-  const totalFixedKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
-    const kdv = ((expense.monthlyAmount || 0) * (expense.kdvRate || 0)) / 100;
-    return sum + kdv;
-  }, 0) : 0;
+ const totalFixedKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
+  const rate = expense.kdvRate || 0;
+  const amount = expense.monthlyAmount || 0;
+  const kdv = (amount * rate) / (100 + rate);
+
+  return sum + kdv;
+}, 0) : 0;
 
   const grandTotalAmount = totalExpenseAmount + totalFixedAmount;
   const grandTotalKdv = totalExpenseKdv + totalFixedKdv;
@@ -83,12 +99,12 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
       ) : (
         <View style={styles.expensesList}>
           
-          {/* Elle Eklenen Masraflar */}
-          {expenses && expenses.length > 0 && (
+          {/* Elle Eklenen Masraflar - Görünür */}
+          {visibleExpenses && visibleExpenses.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Elle Eklenen Masraflar:</Text>
               
-              {expenses.map((expense) => {
+              {visibleExpenses.map((expense) => {
                 const kdvAmount = expense.hasFatura ? ((expense.amount || 0) * (expense.kdvRate || 0)) / 100 : 0;
                 
                 return (
@@ -120,6 +136,48 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
                           KDV indirimi yok
                         </Text>
                       )}
+                    </View>
+                    
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDelete(expense.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.deleteButtonText}>Sil</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Gizli Masraflar - Sadece vergi hesaplamalarında kullanılıyor */}
+          {hiddenExpenses && hiddenExpenses.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>🔒 Gizli Masraflar (Sadece Vergi Hesabında):</Text>
+              
+              {hiddenExpenses.map((expense) => {
+                const kdvAmount = expense.hasFatura ? ((expense.amount || 0) * (expense.kdvRate || 0)) / 100 : 0;
+                
+                return (
+                  <View key={expense.id} style={[styles.expenseItem, styles.hiddenExpenseItem]}>
+                    <View style={styles.expenseInfo}>
+                      <View style={styles.expenseHeader}>
+                        <Text style={styles.expenseName}>{expense.name}</Text>
+                        <View style={styles.hiddenBadge}>
+                          <Text style={styles.hiddenBadgeText}>🔒 Gizli</Text>
+                        </View>
+                      </View>
+                      
+                      <Text style={styles.expenseAmount}>{format(expense.amount)} ₺</Text>
+                      {expense.hasFatura && expense.kdvRate > 0 && (
+                        <Text style={styles.expenseKdv}>
+                          KDV %{expense.kdvRate} = {format(kdvAmount)} ₺ (İndirilecek)
+                        </Text>
+                      )}
+                      <Text style={styles.hiddenNote}>
+                        Görünür masraflara dahil değil, sadece vergi hesabında kullanılıyor
+                      </Text>
                     </View>
                     
                     <TouchableOpacity
@@ -203,8 +261,8 @@ const ExpenseList = ({ expenses, fixedExpenses = [], onDeleteExpense }) => {
           {/* Debug Info */}
           <View style={styles.debugContainer}>
             <Text style={styles.debugText}>
-              Debug: Manuel={expenses?.length || 0}, Sabit={fixedExpenses?.length || 0}, 
-              Toplam={format(grandTotalAmount)}₺, KDV={format(grandTotalKdv)}₺
+              Debug: Görünür={visibleExpenses?.length || 0}, Gizli={hiddenExpenses?.length || 0}, 
+              Sabit={fixedExpenses?.length || 0}, Toplam={format(grandTotalAmount)}₺, KDV={format(grandTotalKdv)}₺
             </Text>
           </View>
         </View>
@@ -303,6 +361,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderColor: '#FCD34D',
   },
+  hiddenExpenseItem: {
+    backgroundColor: '#F3E8FF',
+    borderColor: '#C4B5FD',
+    borderWidth: 2,
+  },
   expenseInfo: {
     flex: 1,
     marginRight: 12,
@@ -357,6 +420,26 @@ const styles = StyleSheet.create({
   expenseNoKdv: {
     fontSize: 12,
     color: '#DC2626',
+  },
+  hiddenNote: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  
+  // Hidden Badge
+  hiddenBadge: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  hiddenBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   
   // Delete Button
