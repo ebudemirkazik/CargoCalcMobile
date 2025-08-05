@@ -1,7 +1,20 @@
-import React from "react";
+// components/ExpenseList.jsx - React Native Version
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Dimensions,
+} from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isTablet = screenWidth >= 768;
 
 function ExpenseList({ expenses = [], fixedExpenses = [], onDeleteExpense }) {
-  const format = (n) => n.toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+  const format = (n) => n.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 
   const totalManualExpenses = expenses.reduce(
     (sum, expense) => sum + expense.amount,
@@ -19,137 +32,459 @@ function ExpenseList({ expenses = [], fixedExpenses = [], onDeleteExpense }) {
     return sum + (isNaN(kdv) ? 0 : kdv);
   }, 0);
 
+  // Masraf silme onayı
+  const handleDeleteExpense = (expense, index) => {
+    Alert.alert(
+      'Masraf Sil',
+      `"${expense.name}" masrafını silmek istediğinizden emin misiniz?`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: () => onDeleteExpense(index),
+        },
+      ]
+    );
+  };
+
   if (expenses.length === 0 && fixedExpenses.length === 0) {
     return (
-      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-        <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 flex items-center">
-          Masraflar
-        </h2>
+      <View style={styles.card}>
+        <Text style={styles.title}>📋 Masraflar</Text>
 
-        {/* Boş durum - Mobil optimized */}
-        <div className="text-center py-6 sm:py-4">
-          <div className="text-4xl sm:text-3xl mb-3 sm:mb-2">💸</div>
-          <p className="text-base sm:text-sm text-gray-500 mb-2">
-            Henüz masraf eklenmedi!
-          </p>
-          <p className="text-sm sm:text-xs text-gray-400">
+        {/* Boş durum */}
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyIcon}>💸</Text>
+          <Text style={styles.emptyText}>Henüz masraf eklenmedi!</Text>
+          <Text style={styles.emptySubtext}>
             Yakıt, yol, bakım gibi masraflarınızı ekleyiniz.
-          </p>
-        </div>
-      </div>
+          </Text>
+        </View>
+      </View>
     );
   }
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg">
-      <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-3 flex items-center">
-        Masraflar
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>📋 Masraflar</Text>
+          {expenses.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{expenses.length}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Elle eklenen masraflar */}
         {expenses.length > 0 && (
-          <span className="ml-2 bg-blue-100 text-blue-800 text-sm sm:text-xs px-2 py-1 rounded-full">
-            {expenses.length}
-          </span>
-        )}
-      </h2>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Elle Eklenen Masraflar:</Text>
 
-      {/* Elle eklenen masraflar */}
-      {expenses.length > 0 && (
-        <div className="mb-4 sm:mb-4">
-          <h3 className="font-medium text-base sm:text-sm text-gray-700 mb-3 sm:mb-2">
-            Elle Eklenen Masraflar:
-          </h3>
+            <View style={styles.expensesList}>
+              {expenses.map((expense, index) => {
+                const kdvAmount =
+                  expense.amount * (expense.kdvRate / (100 + expense.kdvRate));
 
-          <ul className="space-y-3 sm:space-y-1">
-            {expenses.map((expense, index) => {
-              const kdvAmount =
-                expense.amount * (expense.kdvRate / (100 + expense.kdvRate));
+                return (
+                  <View key={expense.id || index} style={styles.expenseItem}>
+                    <View style={styles.expenseInfo}>
+                      {/* Masraf adı */}
+                      <Text style={styles.expenseName}>{expense.name}</Text>
 
-              return (
-                <li
-                  key={index}
-                  className="flex justify-between items-center bg-gray-50 p-4 sm:p-3 rounded-xl sm:rounded text-base sm:text-sm group hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex-1 mr-3">
-                    {/* Mobil: Dikey layout, Desktop: Horizontal */}
-                    <div className="flex flex-col sm:flex-row sm:items-center">
-                      <span className="font-semibold sm:font-medium text-gray-800 mb-1 sm:mb-0">
-                        {expense.name}
-                      </span>
-
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:ml-2">
-                        <span className="text-lg sm:text-base font-bold sm:font-medium text-red-600">
+                      {/* Tutar ve KDV bilgisi */}
+                      <View style={styles.expenseAmounts}>
+                        <Text style={styles.expenseAmount}>
                           {format(expense.amount)} ₺
-                        </span>
+                        </Text>
 
                         {expense.kdvRate > 0 && (
-                          <span className="text-sm sm:text-xs text-green-600 mt-1 sm:mt-0 sm:ml-2">
-                            (KDV %{expense.kdvRate} = {format(kdvAmount)} ₺)
-                          </span>
+                          <Text style={styles.expenseKdv}>
+                            KDV %{expense.kdvRate} = {format(kdvAmount)} ₺
+                          </Text>
                         )}
-                      </div>
-                    </div>
-                  </div>
+                      </View>
+                    </View>
 
-                  {/* SİL BUTONU - MOBİLDE HER ZAMAN GÖRÜNÜR */}
-                  <button
-                    onClick={() => onDeleteExpense(index)}
-                    className="bg-blue-500 hover:bg-blue-700 text-white p-3 sm:p-1.75 rounded-xl sm:rounded min-w-[44px] min-h-[44px] sm:min-w-auto sm:min-h-auto flex items-center justify-center transition-all transform active:scale-95 sm:active:scale-100"
-                    title="Masrafı Sil"
-                  >
-                    <span className="text-base sm:text-xs">Sil</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    {/* Sil butonu */}
+                    <TouchableOpacity
+                      onPress={() => handleDeleteExpense(expense, index)}
+                      style={styles.deleteButton}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.deleteButtonText}>Sil</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
 
-          {/* Ara toplam */}
-          <div className="text-right mt-4 sm:mt-2 space-y-2 sm:space-y-1">
-            <div className="text-base sm:text-sm font-semibold sm:font-medium text-blue-600">
-              Ara Toplam: {format(totalManualExpenses)} ₺
-            </div>
-            {totalManualKdv > 0 && (
-              <div className="text-sm sm:text-xs text-green-600">
-                Toplam KDV: {format(totalManualKdv)} ₺
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Genel toplam */}
-      <div className="border-t pt-4 sm:pt-3 mt-4 sm:mt-3">
-        <div className="flex justify-between items-center font-bold text-lg sm:text-base">
-          <span>Toplam Aylık Masraf:</span>
-          <span className="text-red-600">{format(totalManualExpenses)} ₺</span>
-        </div>
-        {totalManualKdv > 0 && (
-          <div className="flex justify-between items-center text-base sm:text-sm mt-2 sm:mt-1">
-            <span className="text-green-700">Toplam İndirilecek KDV:</span>
-            <span className="text-green-600 font-semibold sm:font-medium">
-              {format(totalManualKdv)} ₺
-            </span>
-          </div>
+            {/* Ara toplam */}
+            <View style={styles.subtotalContainer}>
+              <View style={styles.subtotalRow}>
+                <Text style={styles.subtotalLabel}>Ara Toplam:</Text>
+                <Text style={styles.subtotalAmount}>
+                  {format(totalManualExpenses)} ₺
+                </Text>
+              </View>
+              {totalManualKdv > 0 && (
+                <View style={styles.kdvRow}>
+                  <Text style={styles.kdvLabel}>Toplam KDV:</Text>
+                  <Text style={styles.kdvAmount}>
+                    {format(totalManualKdv)} ₺
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
         )}
-      </div>
 
-      {/* Açıklama */}
-      {fixedExpenses.length > 0 && (
-        <div className="bg-blue-50 p-3 sm:p-2 rounded-xl sm:rounded mt-4 sm:mt-3 text-sm sm:text-xs text-blue-800">
-          <p>
-            Sabit giderler otomatik olarak her ay hesaplamalara dahil edilir.
-          </p>
-        </div>
-      )}
+        {/* Genel toplam */}
+        <View style={styles.totalContainer}>
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Toplam Aylık Masraf:</Text>
+            <Text style={styles.totalAmount}>
+              {format(totalManualExpenses)} ₺
+            </Text>
+          </View>
+          {totalManualKdv > 0 && (
+            <View style={styles.totalKdvRow}>
+              <Text style={styles.totalKdvLabel}>Toplam İndirilecek KDV:</Text>
+              <Text style={styles.totalKdvAmount}>
+                {format(totalManualKdv)} ₺
+              </Text>
+            </View>
+          )}
+        </View>
 
-      {/* Mobil ipucu */}
-      <div className="block sm:hidden mt-4 bg-gray-50 border border-gray-200 rounded-xl p-3">
-        <div className=" items-center justify-center text-gray-500 text-sm">
-          <span className="mr-2">İpucu:</span>
-          <p>Masraf silmek için sil butona dokunun.</p>
-        </div>
-      </div>
-    </div>
+        {/* Sabit giderler açıklaması */}
+        {fixedExpenses.length > 0 && (
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoText}>
+              Sabit giderler otomatik olarak her ay hesaplamalara dahil edilir.
+            </Text>
+          </View>
+        )}
+
+        {/* Mobil ipucu */}
+        {!isTablet && expenses.length > 0 && (
+          <View style={styles.tipContainer}>
+            <Text style={styles.tipIcon}>💡</Text>
+            <View style={styles.tipContent}>
+              <Text style={styles.tipTitle}>İpucu:</Text>
+              <Text style={styles.tipText}>
+                Masraf silmek için sil butonuna dokunun. Silme işlemi onay isteyecektir.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Quick Stats */}
+        {expenses.length > 0 && (
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{expenses.length}</Text>
+              <Text style={styles.statLabel}>Masraf</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>
+                {format(totalManualExpenses / expenses.length)}₺
+              </Text>
+              <Text style={styles.statLabel}>Ortalama</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>
+                {totalManualKdv > 0 ? format(totalManualKdv) + '₺' : '0₺'}
+              </Text>
+              <Text style={styles.statLabel}>KDV İndirimi</Text>
+            </View>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: isTablet ? 24 : 20,
+    margin: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: isTablet ? 20 : 18,
+    fontWeight: 'bold',
+    color: '#374151',
+    flex: 1,
+  },
+  badge: {
+    backgroundColor: '#DBEAFE',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
+  // Section
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+
+  // Expenses List
+  expensesList: {
+    gap: 12,
+  },
+  expenseItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  expenseInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  expenseName: {
+    fontSize: isTablet ? 16 : 15,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  expenseAmounts: {
+    gap: 4,
+  },
+  expenseAmount: {
+    fontSize: isTablet ? 16 : 15,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  expenseKdv: {
+    fontSize: 12,
+    color: '#059669',
+  },
+
+  // Delete Button
+  deleteButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Subtotal
+  subtotalContainer: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  subtotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  subtotalLabel: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  subtotalAmount: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#2563EB',
+  },
+  kdvRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  kdvLabel: {
+    fontSize: 14,
+    color: '#059669',
+  },
+  kdvAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#059669',
+  },
+
+  // Total
+  totalContainer: {
+    paddingTop: 16,
+    marginTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#E5E7EB',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  totalLabel: {
+    fontSize: isTablet ? 18 : 16,
+    fontWeight: 'bold',
+    color: '#374151',
+  },
+  totalAmount: {
+    fontSize: isTablet ? 18 : 16,
+    fontWeight: 'bold',
+    color: '#DC2626',
+  },
+  totalKdvRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  totalKdvLabel: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  totalKdvAmount: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#059669',
+  },
+
+  // Info Container
+  infoContainer: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+  },
+  infoText: {
+    fontSize: 12,
+    color: '#1E40AF',
+    textAlign: 'center',
+  },
+
+  // Tip Container
+  tipContainer: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 16,
+  },
+  tipIcon: {
+    fontSize: 16,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 11,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+
+  // Stats Container
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  statCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  statValue: {
+    fontSize: isTablet ? 16 : 14,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+});
 
 export default ExpenseList;

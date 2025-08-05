@@ -15,6 +15,7 @@ import IncomeInput from './components/IncomeInput';
 import AddExpenseForm from './components/AddExpenseForm';
 import ExpenseDonutChart from './components/ExpenseDonutChart';
 import FixedExpenses from './components/FixedExpenses';
+import ExpenseList from './components/ExpenseList';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -82,35 +83,14 @@ export default function App() {
           onAddToManualExpenses={handleAddToManualExpenses}
         />
 
-        {/* Masraf Listesi */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📊 Masraflar</Text>
-          
-          {expenses.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>💸</Text>
-              <Text style={styles.emptyText}>Henüz masraf eklenmedi</Text>
-            </View>
-          ) : (
-            expenses.map((expense) => (
-              <View key={expense.id} style={styles.expenseItem}>
-                <View style={styles.expenseInfo}>
-                  <Text style={styles.expenseName}>{expense.name}</Text>
-                  <Text style={styles.expenseAmount}>{formatCurrency(expense.amount)}</Text>
-                  {expense.kdvRate && (
-                    <Text style={styles.expenseKdv}>KDV: %{expense.kdvRate}</Text>
-                  )}
-                </View>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteExpense(expense.id)}
-                >
-                  <Text style={styles.deleteButtonText}>Sil</Text>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-        </View>
+        {/* Masraf Listesi - Real Component */}
+        <ExpenseList 
+          expenses={expenses}
+          fixedExpenses={fixedExpenses}
+          onDeleteExpense={handleDeleteExpense}
+        />
+
+        {/* Masraf Listesi kaldırıldı - artık ExpenseList component'i var */}
 
         {/* Özet */}
         <View style={styles.card}>
@@ -146,7 +126,8 @@ export default function App() {
             ✅ AddExpenseForm Component: Aktif{'\n'}
             ✅ ExpenseDonutChart Component: Aktif{'\n'}
             ✅ FixedExpenses Component: Aktif{'\n'}
-            ⏳ Diğer componentler: Gelecek
+            ✅ ExpenseList Component: Aktif{'\n'}
+            ⏳ Summary & HistoryList: Gelecek
           </Text>
           <Text style={styles.testNote}>
             Income: {income} | Expenses: {expenses.length} adet | Fixed: {fixedExpenses.length} adet
@@ -226,60 +207,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    padding: 32,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  
-  // Expense Item
-  expenseItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  expenseInfo: {
-    flex: 1,
-  },
-  expenseName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  expenseAmount: {
-    fontSize: 16,
-    color: '#EF4444',
-    fontWeight: 'bold',
-  },
-  expenseKdv: {
-    fontSize: 12,
-    color: '#10B981',
-    marginTop: 2,
-  },
-  deleteButton: {
-    backgroundColor: '#EF4444',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  deleteButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
+  // Eski expense item styles kaldırıldı - artık ExpenseList component'inde
   
   // Summary
   summaryRow: {
