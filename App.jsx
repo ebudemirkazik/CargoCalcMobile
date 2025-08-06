@@ -204,6 +204,9 @@ const AppContent = () => {
   };
 
   // Safe area aware styles
+  // NOT: tabBarWithSafeArea ve progressContainerWithSafeArea stilleri,
+  // paddingBottom: Math.max(insets.bottom, 6) ve Math.max(insets.bottom + 8, 12)
+  // ile evrensel safe area koruması sağlar. Tüm cihazlarda navigation bar çakışmalarını önler.
   const safeStyles = StyleSheet.create({
     container: {
       flex: 1,
@@ -215,7 +218,7 @@ const AppContent = () => {
       backgroundColor: '#ffffff',
       borderTopWidth: 1,
       borderTopColor: '#E5E7EB',
-      paddingBottom: Math.max(insets.bottom, 6), // En az 6px, safe area varsa daha fazla
+      paddingBottom: Math.max(insets.bottom, 6), // Safe area uyumlu
       paddingTop: 10,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
@@ -227,7 +230,7 @@ const AppContent = () => {
       backgroundColor: '#ffffff',
       paddingVertical: 8,
       alignItems: 'center',
-      paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area + extra padding
+      paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area uyumlu
     },
   });
 
@@ -387,6 +390,8 @@ const AppContent = () => {
         </View>
 
         {/* Bottom Tab Navigation - Safe Area Aware */}
+        {/* safeStyles.tabBarWithSafeArea ve progressContainerWithSafeArea
+            navigation bar çakışmalarını önleyecek şekilde yapılandırılmıştır. */}
         {activeTab !== null && (
           <View style={safeStyles.tabBarWithSafeArea}>
             {tabs.map((tab) => (
@@ -448,6 +453,7 @@ const AppContent = () => {
 };
 
 // Ana App Component - SafeAreaProvider ile sarmalı
+// SafeAreaProvider ve SafeAreaView zaten doğru şekilde kullanılmakta.
 export default function App() {
   return (
     <SafeAreaProvider>
