@@ -10,7 +10,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import MockStorage from '../utils/MockStorage';
+import asyncStorageManager from '../utils/AsyncStorage'; // ✅ Güncel storage
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -31,22 +31,20 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
 
   const loadFixedExpenses = async () => {
     try {
-      const stored = await MockStorage.getItem('fixedExpenses');
+      const stored = await asyncStorageManager.getItem('fixedExpenses');
       const expenses = stored ? JSON.parse(stored) : [];
       console.log('FixedExpenses yüklendi:', expenses);
       setFixedExpenses(expenses);
-      // calculateMonthlyExpenses(expenses); // Bu satırı kaldırdık - otomatik eklemesin
     } catch (error) {
       console.error('FixedExpenses yükleme hatası:', error);
       setFixedExpenses([]);
-      // calculateMonthlyExpenses([]); // Bu satırı da kaldırdık
     }
   };
-  
+
 
   const saveFixedExpenses = async (expenses) => {
     try {
-      await MockStorage.setItem('fixedExpenses', JSON.stringify(expenses));
+      await asyncStorageManager.setItem('fixedExpenses', JSON.stringify(expenses));
       console.log('FixedExpenses kaydedildi:', expenses);
     } catch (error) {
       console.error('FixedExpenses kaydetme hatası:', error);
@@ -70,7 +68,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     // if (onFixedExpensesChange) {
     //   onFixedExpensesChange(monthlyExpenses);
     // }
-    
+
     return monthlyExpenses;
   };
 
@@ -86,7 +84,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
       name: newExpense.name.trim(),
       yearlyAmount: parseFloat(newExpense.yearlyAmount),
       kdvRate: parseFloat(newExpense.kdvRate),
-      
+
     };
 
     const updated = [...fixedExpenses, expense];
@@ -167,6 +165,23 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
     { value: 20, label: '%20', desc: 'Genel' },
   ];
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      setIsLoading(true);
+      await loadFixedExpenses();
+      setIsLoading(false);
+    })();
+  }, []);
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>⏳ Sabit giderler yükleniyor...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
@@ -179,6 +194,8 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
             Debug: {fixedExpenses.length} sabit gider, Toplam aylık: {format(totalMonthlyAmount)} ₺
           </Text>
         </View>
+
+
 
         {/* Yeni sabit gider ekleme formu */}
         <View style={styles.formSection}>
@@ -257,7 +274,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
                     <Text style={styles.previewValue}>
                       {format(
                         (parseFloat(newExpense.yearlyAmount) / 12) *
-                          (newExpense.kdvRate / (100 + parseFloat(newExpense.kdvRate)))
+                        (newExpense.kdvRate / (100 + parseFloat(newExpense.kdvRate)))
                       )}{' '}
                       ₺
                     </Text>
@@ -301,7 +318,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
                   {/* Expense Info */}
                   <View style={styles.expenseInfo}>
                     <Text style={styles.expenseName}>{expense.name}</Text>
-                    
+
                     <View style={styles.expenseAmounts}>
                       <Text style={styles.expenseYearly}>
                         Yıllık: <Text style={styles.expenseYearlyValue}>{format(expense.yearlyAmount)} ₺</Text>
