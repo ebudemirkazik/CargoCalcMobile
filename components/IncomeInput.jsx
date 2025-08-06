@@ -14,6 +14,7 @@ import {
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
+
 function IncomeInput({ income, setIncome }) {
   const [inputValue, setInputValue] = useState(income.toString());
   const [error, setError] = useState('');
@@ -136,7 +137,7 @@ function IncomeInput({ income, setIncome }) {
   const otherAmounts = quickAmounts.filter(item => !item.popular);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
       <View style={styles.card}>
         {/* Header */}
         <View style={styles.header}>
@@ -258,7 +259,7 @@ function IncomeInput({ income, setIncome }) {
           </View>
         )}
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
