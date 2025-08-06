@@ -218,8 +218,8 @@ const AppContent = () => {
       backgroundColor: '#ffffff',
       borderTopWidth: 1,
       borderTopColor: '#E5E7EB',
-      paddingBottom: Math.max(insets.bottom, 6), // Safe area uyumlu
-      paddingTop: 10,
+      paddingBottom: Math.max(insets.bottom -10, 15), // Safe area uyumlu
+      paddingTop: 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
@@ -230,7 +230,7 @@ const AppContent = () => {
       backgroundColor: '#ffffff',
       paddingVertical: 8,
       alignItems: 'center',
-      paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area uyumlu
+      paddingBottom: Math.max(insets.bottom, 8), // Safe area uyumlu
     },
   });
 
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
     // Active state handled by individual elements
   },
   tabIcon: {
-    fontSize: Math.min(screenWidth * 0.055, 20),
+    fontSize: Math.min(screenWidth * 0.065, 24),
     marginBottom: 4,
     opacity: 0.6,
   },
@@ -647,9 +647,9 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   tabLabel: {
-    fontSize: Math.min(screenWidth * 0.028, 10),
+    fontSize: Math.min(screenWidth * 0.032, 12),
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '700',
     textAlign: 'center',
   },
   tabLabelActive: {
@@ -663,15 +663,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressDot: {
-    width: Math.min(screenWidth * 0.015, 6),
-    height: Math.min(screenWidth * 0.015, 6),
-    borderRadius: Math.min(screenWidth * 0.0075, 3),
+    width: Math.min(screenWidth * 0.02, 9),
+    height: Math.min(screenWidth * 0.02, 9),
+    borderRadius: Math.min(screenWidth * 0.001, 4),
     backgroundColor: '#D1D5DB',
     marginHorizontal: 3,
   },
   progressDotActive: {
     backgroundColor: '#3B82F6',
-    transform: [{ scale: 1.15 }],
+    transform: [{ scale: 1.25 }],
   },
 
   // Landing Page

@@ -46,102 +46,102 @@ const DataInputPage = () => {
 
   return (
     <SafeAreaProvider>
-    <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Sayfa Başlığı */}
-        <View style={styles.pageHeader}>
-          <Text style={styles.pageTitle}>📝 Veri Girişi</Text>
-          <Text style={styles.pageDescription}>
-            Hakediş tutarınızı, masraflarınızı ve sabit giderlerinizi girin
-          </Text>
-        </View>
-
-        {/* 1. Hakediş Girişi */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionNumber}>1</Text>
-            <Text style={styles.sectionTitle}>Aylık Hakediş</Text>
-            {isIncomeComplete && <Text style={styles.checkmark}>✅</Text>}
+      <SafeAreaView style={styles.container}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Sayfa Başlığı */}
+          <View style={styles.pageHeader}>
+            <Text style={styles.pageTitle}>Veri Girişi</Text>
+            <Text style={styles.pageDescription}>
+              Hakediş tutarınızı, masraflarınızı ve sabit giderlerinizi girin
+            </Text>
           </View>
-          <IncomeInput income={income} setIncome={setIncome} />
-        </View>
 
-        {/* 2. Masraf Ekleme */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionNumber}>2</Text>
-            <Text style={styles.sectionTitle}>Masraflarınız</Text>
-            <Text style={styles.optionalTag}>İsteğe Bağlı</Text>
-          </View>
-          <AddExpenseForm onAddExpense={handleAddExpense} />
-        </View>
-
-        {/* 3. Masraf Listesi - Sadece masraf varsa göster */}
-        {hasExpenses && (
+          {/* 1. Hakediş Girişi */}
           <View style={styles.section}>
-            <ExpenseList
-              expenses={expenses}
-              fixedExpenses={fixedExpenses}
-              onDeleteExpense={handleDeleteExpense}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionNumber}>1</Text>
+              <Text style={styles.sectionTitle}>Aylık Hakediş</Text>
+              {isIncomeComplete && <Text style={styles.checkmark}>✅</Text>}
+            </View>
+            <IncomeInput income={income} setIncome={setIncome} />
+          </View>
+
+          {/* 2. Masraf Ekleme */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionNumber}>2</Text>
+              <Text style={styles.sectionTitle}>Masraflarınız</Text>
+              <Text style={styles.optionalTag}>İsteğe Bağlı</Text>
+            </View>
+            <AddExpenseForm onAddExpense={handleAddExpense} />
+          </View>
+
+          {/* 3. Masraf Listesi - Sadece masraf varsa göster */}
+          {hasExpenses && (
+            <View style={styles.section}>
+              <ExpenseList
+                expenses={expenses}
+                fixedExpenses={fixedExpenses}
+                onDeleteExpense={handleDeleteExpense}
+              />
+            </View>
+          )}
+
+          {/* 4. Sabit Giderler */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionNumber}>3</Text>
+              <Text style={styles.sectionTitle}>Yıllık Sabit Giderler</Text>
+              <Text style={styles.optionalTag}>İsteğe Bağlı</Text>
+            </View>
+            <FixedExpenses
+              onFixedExpensesChange={handleFixedExpensesChange}
+              onAddToManualExpenses={handleAddToManualExpenses}
             />
           </View>
-        )}
 
-        {/* 4. Sabit Giderler */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionNumber}>3</Text>
-            <Text style={styles.sectionTitle}>Yıllık Sabit Giderler</Text>
-            <Text style={styles.optionalTag}>İsteğe Bağlı</Text>
+          {/* Spacer for next button */}
+          <View style={styles.spacer} />
+        </ScrollView>
+
+        {/* Next Button - Fixed Bottom */}
+        <View style={styles.bottomContainer}>
+          {/* Progress Summary */}
+          <View style={styles.progressSummary}>
+            <Text style={styles.progressText}>
+              {isIncomeComplete ? (
+                hasExpenses ?
+                  `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺ • ${expenses.length} masraf` :
+                  `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺`
+              ) : (
+                'Lütfen hakediş tutarını girin'
+              )}
+            </Text>
           </View>
-          <FixedExpenses
-            onFixedExpensesChange={handleFixedExpensesChange}
-            onAddToManualExpenses={handleAddToManualExpenses}
-          />
+
+          {/* Next Button */}
+          <TouchableOpacity
+            style={[
+              styles.nextButton,
+              canProceed ? styles.nextButtonEnabled : styles.nextButtonDisabled
+            ]}
+            onPress={handleNext}
+            disabled={!canProceed}
+            activeOpacity={canProceed ? 0.8 : 1}
+          >
+            <Text style={[
+              styles.nextButtonText,
+              canProceed ? styles.nextButtonTextEnabled : styles.nextButtonTextDisabled
+            ]}>
+              {canProceed ? 'Hesaplamaya Geç' : 'Hakediş Tutarı Gerekli'}
+            </Text>
+          </TouchableOpacity>
         </View>
-
-        {/* Spacer for next button */}
-        <View style={styles.spacer} />
-      </ScrollView>
-
-      {/* Next Button - Fixed Bottom */}
-      <View style={styles.bottomContainer}>
-        {/* Progress Summary */}
-        <View style={styles.progressSummary}>
-          <Text style={styles.progressText}>
-            {isIncomeComplete ? (
-              hasExpenses ?
-                `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺ • ${expenses.length} masraf` :
-                `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺`
-            ) : (
-              '⏳ Lütfen hakediş tutarını girin'
-            )}
-          </Text>
-        </View>
-
-        {/* Next Button */}
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            canProceed ? styles.nextButtonEnabled : styles.nextButtonDisabled
-          ]}
-          onPress={handleNext}
-          disabled={!canProceed}
-          activeOpacity={canProceed ? 0.8 : 1}
-        >
-          <Text style={[
-            styles.nextButtonText,
-            canProceed ? styles.nextButtonTextEnabled : styles.nextButtonTextDisabled
-          ]}>
-            {canProceed ? 'Hesaplamaya Geç 📊' : 'Hakediş Tutarı Gerekli'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 };
@@ -237,10 +237,10 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     padding: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 1 },   
+    shadowOpacity: 0.05,                       
+    shadowRadius: 2,                           
+    elevation: 1,
   },
 
   // Progress Summary
@@ -260,12 +260,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButtonEnabled: {
+
     backgroundColor: '#3B82F6',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 8,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 14,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    minHeight: 25,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   nextButtonDisabled: {
     backgroundColor: '#D1D5DB',
