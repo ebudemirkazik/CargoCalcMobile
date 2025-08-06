@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
 
   // Progress Summary
   progressSummary: {
-    marginBottom: 8,
+    marginBottom: 4,
   },
   progressText: {
     fontSize: 14,

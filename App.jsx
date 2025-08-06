@@ -1,19 +1,19 @@
-// App.jsx - Enhanced with Loading States & Error Handling
+// App.jsx - Android Safe Area Fixed for All Devices
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   StatusBar,
-  SafeAreaView,
   TouchableOpacity,
   Dimensions,
   Image,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // Global State Context
 const AppContext = createContext();
@@ -30,6 +30,25 @@ export const useAppContext = () => {
 import DataInputPage from './pages/DataInputPage';
 import ResultsPage from './pages/ResultsPage';
 import HistoryPage from './pages/HistoryPage';
+
+// Safe Area Calculations for Android
+const getStatusBarHeight = () => {
+  if (Platform.OS === 'ios') return 0;
+  return StatusBar.currentHeight || 0;
+};
+
+const getNotchPadding = () => {
+  // Modern Android phones with notches/punch holes
+  const aspectRatio = screenHeight / screenWidth;
+  
+  // Very tall screens (likely has notch/punch hole)
+  if (aspectRatio > 2.0) return 10;
+  
+  // Regular tall screens
+  if (aspectRatio > 1.9) return 5;
+  
+  return 0;
+};
 
 // Ana App Component
 export default function App() {
@@ -78,10 +97,10 @@ export default function App() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       // Simulated app initialization
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // App ready
       setIsLoading(false);
     } catch (error) {
@@ -195,7 +214,7 @@ export default function App() {
 
     // Navigation
     setActiveTab: handleTabChange,
-    
+
     // UI Actions
     setError,
   };
@@ -203,8 +222,12 @@ export default function App() {
   // Loading Screen
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={styles.container}>
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor="#F8FAFC" 
+          translucent={false}
+        />
         <View style={styles.loadingContainer}>
           {/* Logo */}
           <Image
@@ -212,17 +235,17 @@ export default function App() {
             style={styles.loadingLogo}
             resizeMode="contain"
           />
-          
+
           {/* App Name */}
           <Text style={styles.loadingTitle}>CargoCalc</Text>
           <Text style={styles.loadingSubtitle}>Nakliye Hesaplama Aracı</Text>
-          
+
           {/* Loading Indicator */}
           <View style={styles.loadingIndicatorContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Uygulama başlatılıyor...</Text>
           </View>
-          
+
           {/* Loading Steps */}
           <View style={styles.loadingSteps}>
             <Text style={styles.loadingStep}>✓ Componentler yükleniyor</Text>
@@ -230,21 +253,25 @@ export default function App() {
             <Text style={styles.loadingStep}>⏳ Hazırlanıyor...</Text>
           </View>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   // Error Screen
   if (error) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={styles.container}>
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor="#F8FAFC" 
+          translucent={false}
+        />
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Bir Hata Oluştu</Text>
           <Text style={styles.errorMessage}>{error}</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={handleRetry}
             activeOpacity={0.8}
@@ -252,7 +279,7 @@ export default function App() {
             <Text style={styles.retryButtonText}>🔄 Tekrar Dene</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -297,16 +324,20 @@ export default function App() {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={styles.container}>
+        <StatusBar 
+          barStyle="dark-content" 
+          backgroundColor="#F8FAFC" 
+          translucent={false}
+        />
 
         {/* Header - Dinamik Tasarım */}
         <View style={activeTab !== null ? styles.headerCompact : styles.headerLanding}>
           {activeTab !== null ? (
             // Kompakt Header - Navigator Sayfaları
             <View style={styles.headerContent}>
-              <Image 
-                source={require('./public/apple-touch-icon.png')} 
+              <Image
+                source={require('./public/apple-touch-icon.png')}
                 style={styles.logoImageSmall}
                 resizeMode="contain"
               />
@@ -327,7 +358,7 @@ export default function App() {
                   resizeMode="contain"
                 />
               </View>
-              
+
               <View style={styles.titleContainerLanding}>
                 <Text style={styles.titleLarge}>CargoCalc</Text>
                 <Text style={styles.subtitleLarge}>
@@ -389,7 +420,18 @@ export default function App() {
             </View>
           </View>
         )}
-      </SafeAreaView>
+
+        {/* Debug Info - Development only */}
+        {__DEV__ && (
+          <View style={styles.debugInfo}>
+            <Text style={styles.debugText}>
+              📱 {Platform.OS} | 📏 {screenWidth}x{screenHeight} | 
+              📊 StatusBar: {getStatusBarHeight()}px | 
+              🔧 Notch: {getNotchPadding()}px
+            </Text>
+          </View>
+        )}
+      </View>
     </AppContext.Provider>
   );
 }
@@ -398,6 +440,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+    paddingTop: getStatusBarHeight() + getNotchPadding(),
   },
 
   // Loading Screen
@@ -406,38 +449,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F8FAFC',
   },
   loadingLogo: {
-    width: 100,
-    height: 100,
+    width: Math.min(screenWidth * 0.25, 100),
+    height: Math.min(screenWidth * 0.25, 100),
     marginBottom: 24,
   },
   loadingTitle: {
-    fontSize: 28,
+    fontSize: Math.min(screenWidth * 0.08, 28),
     fontWeight: 'bold',
     color: '#1D4ED8',
     marginBottom: 8,
   },
   loadingSubtitle: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#6B7280',
     marginBottom: 40,
+    textAlign: 'center',
   },
   loadingIndicatorContainer: {
     alignItems: 'center',
     marginBottom: 32,
   },
   loadingText: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#374151',
     marginTop: 16,
+    textAlign: 'center',
   },
   loadingSteps: {
     alignItems: 'flex-start',
   },
   loadingStep: {
-    fontSize: 14,
+    fontSize: Math.min(screenWidth * 0.04, 14),
     color: '#6B7280',
     marginBottom: 8,
   },
@@ -450,18 +495,18 @@ const styles = StyleSheet.create({
     padding: 40,
   },
   errorIcon: {
-    fontSize: 64,
+    fontSize: Math.min(screenWidth * 0.18, 64),
     marginBottom: 24,
   },
   errorTitle: {
-    fontSize: 24,
+    fontSize: Math.min(screenWidth * 0.07, 24),
     fontWeight: 'bold',
     color: '#EF4444',
     marginBottom: 16,
     textAlign: 'center',
   },
   errorMessage: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
@@ -473,10 +518,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 12,
     alignItems: 'center',
+    minWidth: screenWidth * 0.5,
   },
   retryButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     fontWeight: 'bold',
   },
 
@@ -484,7 +530,7 @@ const styles = StyleSheet.create({
   // Landing Page Header (Büyük)
   headerLanding: {
     backgroundColor: '#ffffff',
-    padding: 20,
+    padding: Math.min(screenWidth * 0.05, 20),
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
@@ -498,29 +544,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   logoImageLarge: {
-    width: 125,
-    height: 125,
+    width: Math.min(screenWidth * 0.3, 125),
+    height: Math.min(screenWidth * 0.3, 125),
   },
   titleContainerLanding: {
     alignItems: 'center',
   },
   titleLarge: {
-    fontSize: 24,
+    fontSize: Math.min(screenWidth * 0.07, 24),
     fontWeight: 'bold',
     color: '#1D4ED8',
     marginBottom: 4,
   },
   subtitleLarge: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#6B7280',
     fontWeight: '500',
+    textAlign: 'center',
   },
 
   // Navigator Pages Header (Kompakt)
   headerCompact: {
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: Math.min(screenWidth * 0.05, 20),
+    paddingVertical: Math.min(screenWidth * 0.03, 12),
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
     shadowColor: '#000',
@@ -534,21 +581,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoImageSmall: {
-    width: 40,
-    height: 40,
+    width: Math.min(screenWidth * 0.1, 40),
+    height: Math.min(screenWidth * 0.1, 40),
     marginRight: 12,
   },
   titleContainer: {
     flex: 1,
   },
   titleSmall: {
-    fontSize: 20,
+    fontSize: Math.min(screenWidth * 0.055, 20),
     fontWeight: 'bold',
     color: '#1D4ED8',
     marginBottom: 2,
   },
   subtitleSmall: {
-    fontSize: 14,
+    fontSize: Math.min(screenWidth * 0.04, 14),
     color: '#6B7280',
     fontWeight: '500',
   },
@@ -558,13 +605,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Tab Bar - Kompakt
+  // Tab Bar - Responsive
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingBottom: 6,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 6,
     paddingTop: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -577,12 +624,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: 4,
+    minHeight: 50,
+    justifyContent: 'center',
   },
   tabButtonActive: {
     // Active state handled by individual elements
   },
   tabIcon: {
-    fontSize: 20,
+    fontSize: Math.min(screenWidth * 0.055, 20),
     marginBottom: 2,
     opacity: 0.6,
   },
@@ -591,7 +640,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: Math.min(screenWidth * 0.028, 10),
     color: '#6B7280',
     fontWeight: '500',
     textAlign: 'center',
@@ -601,20 +650,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Progress Bar - Kompakt
+  // Progress Bar - Responsive
   progressContainer: {
     backgroundColor: '#ffffff',
-    paddingVertical: 4,
+    paddingVertical: 8,
     alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 21 : 17,
   },
   progressBar: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   progressDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: Math.min(screenWidth * 0.015, 6),
+    height: Math.min(screenWidth * 0.015, 6),
+    borderRadius: Math.min(screenWidth * 0.0075, 3),
     backgroundColor: '#D1D5DB',
     marginHorizontal: 3,
   },
@@ -623,28 +673,28 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.15 }],
   },
 
-  // Landing Page
+  // Landing Page - Responsive
   landingPage: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: Math.min(screenWidth * 0.05, 20),
     backgroundColor: '#F8FAFC',
   },
   landingContent: {
     alignItems: 'center',
-    maxWidth: 400,
+    maxWidth: Math.min(screenWidth * 0.9, 400),
     width: '100%',
   },
   landingTitle: {
-    fontSize: 32,
+    fontSize: Math.min(screenWidth * 0.09, 32),
     fontWeight: 'bold',
     color: '#1D4ED8',
     marginBottom: 16,
     textAlign: 'center',
   },
   landingDescription: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 24,
@@ -658,7 +708,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#ffffff',
-    padding: 16,
+    padding: Math.min(screenWidth * 0.04, 16),
     borderRadius: 12,
     marginBottom: 12,
     shadowColor: '#000',
@@ -668,18 +718,18 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   featureIcon: {
-    fontSize: 24,
+    fontSize: Math.min(screenWidth * 0.065, 24),
     marginRight: 16,
   },
   featureText: {
-    fontSize: 16,
+    fontSize: Math.min(screenWidth * 0.045, 16),
     color: '#374151',
     fontWeight: '500',
   },
   startButton: {
     backgroundColor: '#3B82F6',
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    paddingVertical: Math.min(screenWidth * 0.04, 16),
+    paddingHorizontal: Math.min(screenWidth * 0.08, 32),
     borderRadius: 12,
     width: '100%',
     alignItems: 'center',
@@ -688,10 +738,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    minHeight: 50,
   },
   startButtonText: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: Math.min(screenWidth * 0.05, 18),
     fontWeight: 'bold',
+  },
+
+  // Debug Info - Development only
+  debugInfo: {
+    position: 'absolute',
+    top: getStatusBarHeight() + getNotchPadding() + 5,
+    left: 5,
+    right: 5,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    padding: 8,
+    borderRadius: 8,
+    zIndex: 9999,
+  },
+  debugText: {
+    color: '#ffffff',
+    fontSize: 10,
+    textAlign: 'center',
   },
 });
