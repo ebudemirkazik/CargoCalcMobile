@@ -8,7 +8,10 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+
 import { useAppContext } from '../App'; // Güncel App.jsx'den import
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import IncomeInput from '../components/IncomeInput';
 import AddExpenseForm from '../components/AddExpenseForm';
 import ExpenseList from '../components/ExpenseList';
@@ -42,9 +45,10 @@ const DataInputPage = () => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView} 
+    <SafeAreaProvider>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -79,7 +83,7 @@ const DataInputPage = () => {
         {/* 3. Masraf Listesi - Sadece masraf varsa göster */}
         {hasExpenses && (
           <View style={styles.section}>
-            <ExpenseList 
+            <ExpenseList
               expenses={expenses}
               fixedExpenses={fixedExpenses}
               onDeleteExpense={handleDeleteExpense}
@@ -94,7 +98,7 @@ const DataInputPage = () => {
             <Text style={styles.sectionTitle}>Yıllık Sabit Giderler</Text>
             <Text style={styles.optionalTag}>İsteğe Bağlı</Text>
           </View>
-          <FixedExpenses 
+          <FixedExpenses
             onFixedExpensesChange={handleFixedExpensesChange}
             onAddToManualExpenses={handleAddToManualExpenses}
           />
@@ -110,7 +114,7 @@ const DataInputPage = () => {
         <View style={styles.progressSummary}>
           <Text style={styles.progressText}>
             {isIncomeComplete ? (
-              hasExpenses ? 
+              hasExpenses ?
                 `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺ • ${expenses.length} masraf` :
                 `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺`
             ) : (
@@ -120,7 +124,7 @@ const DataInputPage = () => {
         </View>
 
         {/* Next Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
             styles.nextButton,
             canProceed ? styles.nextButtonEnabled : styles.nextButtonDisabled
@@ -137,7 +141,8 @@ const DataInputPage = () => {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
+    </SafeAreaProvider>
   );
 };
 
