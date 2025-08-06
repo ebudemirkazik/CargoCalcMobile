@@ -8,7 +8,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import MockStorage from '../utils/MockStorage';
+import asyncStorageManager from '../utils/AsyncStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -100,50 +100,40 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
   // AsyncStorage'a kaydetme fonksiyonu
   const saveToHistory = async () => {
-    try {
-      const historyData = {
-        date: new Date().toISOString(),
-        income: income || 0,
-        expenses: expenses || [],
-        fixedExpenses: fixedExpenses || [],
-        totalExpenses: allExpenses,
-        odenecekKdv: odenecekKdv,
-        gelirVergisi: gelirVergisi,
-        toplamVergi: toplamVergi,
-        netKazanc: netKazanc,
-        vergiyeTabiGelir: vergiyeTabiGelir,
-        kdvHaricGelir: kdvHaricGelir,
-        faturaliMasraflar: faturaliMasraflar,
-        indirilebilirMasraflar: indirilebilirMasraflar,
-        timestamp: Date.now(),
-      };
+  try {
+    const historyData = {
+      date: new Date().toISOString(),
+      income: income || 0,
+      expenses: expenses || [],
+      fixedExpenses: fixedExpenses || [],
+      totalExpenses: allExpenses,
+      odenecekKdv: odenecekKdv,
+      gelirVergisi: gelirVergisi,
+      toplamVergi: toplamVergi,
+      netKazanc: netKazanc,
+      vergiyeTabiGelir: vergiyeTabiGelir,
+      kdvHaricGelir: kdvHaricGelir,
+      faturaliMasraflar: faturaliMasraflar,
+      indirilebilirMasraflar: indirilebilirMasraflar,
+      timestamp: Date.now(),
+    };
 
-      const existingData = await MockStorage.getItem('cargoCalcHistory');
-      const history = existingData ? JSON.parse(existingData) : [];
+    const existingData = await asyncStorageManager.getItem('cargoCalcHistory');
+    const history = existingData ? JSON.parse(existingData) : [];
 
-      history.push(historyData);
+    const updated = [historyData, ...history.slice(0, 49)];
+    await asyncStorageManager.setItem('cargoCalcHistory', JSON.stringify(updated));
 
-      await MockStorage.setItem('cargoCalcHistory', JSON.stringify(history));
+    Alert.alert('Başarılı!', 'Hesaplama geçmişe kaydedildi.');
 
-      Alert.alert(
-        'Başarılı!',
-        'Hesaplama geçmişe kaydedildi.',
-        [{ text: 'Tamam' }]
-      );
-
-      // Parent component'e bildir
-      if (onHistorySaved) {
-        onHistorySaved();
-      }
-    } catch (error) {
-      console.error('Kaydetme hatası:', error);
-      Alert.alert(
-        'Hata!',
-        'Hesaplama kaydedilemedi: ' + error.message,
-        [{ text: 'Tamam' }]
-      );
+    if (onHistorySaved) {
+      onHistorySaved();
     }
-  };
+  } catch (error) {
+    console.error('Kaydetme hatası:', error);
+    Alert.alert('Hata!', 'Hesaplama kaydedilemedi: ' + error.message);
+  }
+};
 
   return (
     <View style={styles.container}>

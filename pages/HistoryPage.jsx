@@ -1,4 +1,4 @@
-// pages/HistoryPage.jsx - Geçmiş & Analiz Sayfası
+// pages/HistoryPage.jsx - Geçmiş & Analiz Sayfası (AsyncStorage versiyon)
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useAppContext } from '../App';
 import HistoryList from '../components/HistoryList';
-import MockStorage from '../utils/MockStorage';
+import asyncStorageManager from '../utils/AsyncStorage'; // ✅ Güncel storage
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -33,7 +33,7 @@ const HistoryPage = () => {
   const loadHistoryCount = async () => {
     try {
       setIsLoading(true);
-      const stored = await MockStorage.getItem('cargoCalcHistory');
+      const stored = await asyncStorageManager.getItem('cargoCalcHistory'); // ✅
       const history = stored ? JSON.parse(stored) : [];
       setHistoryCount(history.length);
     } catch (error) {
@@ -46,11 +46,11 @@ const HistoryPage = () => {
 
   // Navigation functions
   const handlePrevious = () => {
-    setActiveTab(1); // Hesaplama sayfasına dön
+    setActiveTab(1);
   };
 
   const handleNewCalculation = () => {
-    setActiveTab(0); // Yeni hesaplama için veri girişine git
+    setActiveTab(0);
   };
 
   // History temizleme
@@ -65,7 +65,7 @@ const HistoryPage = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await MockStorage.removeItem('cargoCalcHistory');
+              await asyncStorageManager.removeItem('cargoCalcHistory'); // ✅
               setHistoryCount(0);
               Alert.alert('Başarılı!', 'Tüm geçmiş temizlendi.');
             } catch (error) {

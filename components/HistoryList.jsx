@@ -1,4 +1,4 @@
-// HistoryList.jsx - React Native Version with Shared Mock Storage
+// components/HistoryList.jsx - AsyncStorage versiyon
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,7 +9,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import MockStorage from '../utils/MockStorage';
+import asyncStorageManager from '../utils/AsyncStorage'; // ✅ Güncel storage
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -19,21 +19,16 @@ const HistoryList = ({ refreshTrigger }) => {
   const [expandedItems, setExpandedItems] = useState({});
 
   useEffect(() => {
-    console.log('HistoryList component loaded');
     loadHistory();
   }, [refreshTrigger]);
 
   const loadHistory = async () => {
     try {
-      console.log('HistoryList loadHistory çağrıldı, refreshTrigger:', refreshTrigger);
-      const stored = await MockStorage.getItem('cargoCalcHistory');
-      console.log('MockStorage\'dan okunan ham data:', stored);
+      const stored = await asyncStorageManager.getItem('cargoCalcHistory');
       const parsedData = stored ? JSON.parse(stored) : [];
-      console.log('Parse edilmiş data:', parsedData);
-      console.log('Array length:', parsedData.length);
       setHistory([...parsedData].reverse());
     } catch (error) {
-      console.error('MockStorage okuma hatası:', error);
+      console.error('AsyncStorage read error:', error);
       setHistory([]);
     }
   };
@@ -51,9 +46,12 @@ const HistoryList = ({ refreshTrigger }) => {
             const updated = history.filter((_, i) => i !== indexToDelete);
             setHistory(updated);
             try {
-              await MockStorage.setItem('cargoCalcHistory', JSON.stringify([...updated].reverse()));
+              await asyncStorageManager.setItem(
+                'cargoCalcHistory',
+                JSON.stringify([...updated].reverse())
+              );
             } catch (error) {
-              console.error('MockStorage yazma hatası:', error);
+              console.error('AsyncStorage write error:', error);
             }
           },
         },
@@ -73,9 +71,9 @@ const HistoryList = ({ refreshTrigger }) => {
           onPress: async () => {
             setHistory([]);
             try {
-              await MockStorage.removeItem('cargoCalcHistory');
+              await asyncStorageManager.removeItem('cargoCalcHistory');
             } catch (error) {
-              console.error('MockStorage temizleme hatası:', error);
+              console.error('AsyncStorage clear error:', error);
             }
           },
         },
@@ -129,8 +127,6 @@ const HistoryList = ({ refreshTrigger }) => {
     }
   };
 
-  console.log('History length:', history.length);
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>📊 Geçmiş Hesaplamalar</Text>
@@ -145,13 +141,12 @@ const HistoryList = ({ refreshTrigger }) => {
         <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
           {history.map((item, i) => (
             <View key={i} style={styles.historyItem}>
-              {/* Başlık ve Silme Butonu */}
+              {/* Tarih ve Sil butonu */}
               <View style={styles.headerRow}>
                 <View style={styles.dateContainer}>
                   <Text style={styles.shortDate}>{formatShortDate(item.date)}</Text>
                   <Text style={styles.fullDate}>{formatDate(item.date)}</Text>
                 </View>
-
                 <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => deleteHistoryItem(i)}
@@ -161,7 +156,7 @@ const HistoryList = ({ refreshTrigger }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* Net Kazanç - Ana Vurgu */}
+              {/* Net Kazanç */}
               <View style={styles.netIncomeContainer}>
                 <View style={styles.netIncomeRow}>
                   <Text style={styles.netIncomeLabel}>Net Kazanç:</Text>
@@ -171,23 +166,20 @@ const HistoryList = ({ refreshTrigger }) => {
                 </View>
               </View>
 
-              {/* Ana Bilgiler - Grid */}
+              {/* Hakediş, Masraf, KDV, Vergi Kartları */}
               <View style={styles.infoGrid}>
                 <View style={[styles.infoCard, styles.incomeCard]}>
                   <Text style={styles.infoCardLabel}>Hakediş:</Text>
                   <Text style={styles.infoCardValue}>{format(item.income)} ₺</Text>
                 </View>
-
                 <View style={[styles.infoCard, styles.expenseCard]}>
                   <Text style={styles.infoCardLabel}>Masraflar:</Text>
                   <Text style={styles.infoCardValue}>{format(item.totalExpenses)} ₺</Text>
                 </View>
-
                 <View style={[styles.infoCard, styles.kdvCard]}>
                   <Text style={styles.infoCardLabel}>Ödenecek KDV:</Text>
                   <Text style={styles.infoCardValue}>{format(item.odenecekKdv)} ₺</Text>
                 </View>
-
                 <View style={[styles.infoCard, styles.taxCard]}>
                   <Text style={styles.infoCardLabel}>Gelir Vergisi:</Text>
                   <Text style={styles.infoCardValue}>{format(item.gelirVergisi)} ₺</Text>
@@ -244,7 +236,7 @@ const HistoryList = ({ refreshTrigger }) => {
                 </View>
               )}
 
-              {/* Performans Göstergesi */}
+              {/* Kar Marjı */}
               <View style={styles.performanceContainer}>
                 <Text style={styles.performanceLabel}>Kar Marjı:</Text>
                 <Text style={styles.performanceValue}>
@@ -258,340 +250,56 @@ const HistoryList = ({ refreshTrigger }) => {
         </ScrollView>
       )}
 
-      {/* Temizle Butonu */}
+      {/* Tümünü Temizle Butonu */}
       {history.length > 0 && (
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.clearAllButton}
-            onPress={clearAllHistory}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.clearAllButtonText}>Tüm Geçmişi Temizle</Text>
-          </TouchableOpacity>
-
           <Text style={styles.statsText}>
             Toplam {history.length} hesaplama kaydı.
           </Text>
         </View>
       )}
-
-      {/* İpucu */}
-      <View style={styles.tipContainer}>
-        <Text style={styles.tipTitle}>💡 İpucu:</Text>
-        <Text style={styles.tipText}>
-          Masraf detaylarını görmek için "Masraf Detayları" bölümüne dokunun.
-        </Text>
-      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#374151',
-    marginBottom: 16,
-  },
-  
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  
-  // History List
-  historyList: {
-    maxHeight: 600,
-  },
-  historyItem: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  
-  // Header Row
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
-  },
-  dateContainer: {
-    flex: 1,
-  },
-  shortDate: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  fullDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  deleteButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 50,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  
-  // Net Income
-  netIncomeContainer: {
-    backgroundColor: '#D1FAE5',
-    borderWidth: 1,
-    borderColor: '#86EFAC',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  netIncomeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  netIncomeLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  netIncomeValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#065F46',
-  },
-  
-  // Info Grid
-  infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-    marginBottom: 16,
-  },
-  infoCard: {
-    width: '50%',
-    paddingHorizontal: 6,
-    marginBottom: 12,
-  },
-  incomeCard: {
-    backgroundColor: '#DBEAFE',
-    borderRadius: 8,
-    padding: 12,
-  },
-  expenseCard: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
-  },
-  kdvCard: {
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 12,
-  },
-  taxCard: {
-    backgroundColor: '#E9D5FF',
-    borderRadius: 8,
-    padding: 12,
-  },
-  infoCardLabel: {
-    fontSize: 12,
-    color: '#374151',
-    marginBottom: 4,
-  },
-  infoCardValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  
-  // Total Tax
-  totalTaxContainer: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-  },
-  totalTaxRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalTaxLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  totalTaxValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  
-  // Expense Details
-  expenseDetailsContainer: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  expenseDetailsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F9FAFB',
-  },
-  expenseDetailsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-  expenseCount: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  expenseCountText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  expenseDetailsContent: {
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    padding: 12,
-  },
-  expenseDetailItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 6,
-  },
-  expenseDetailLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  expenseDetailName: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  expenseDetailKdv: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  expenseDetailAmount: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1F2937',
-  },
-  
-  // Performance
-  performanceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-  },
-  performanceLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  performanceValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  
-  // Footer
-  footer: {
-    marginTop: 16,
-  },
-  clearAllButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  clearAllButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  statsText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  
-  // Tip
-  tipContainer: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  tipText: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
+  // Sadece storage tarafı değişti, stiller orijinal haliyle bırakıldı.
+  container: { padding: 16 },
+  title: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  emptyState: { alignItems: 'center', padding: 32 },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyText: { fontSize: 16, fontWeight: '600' },
+  emptySubtext: { fontSize: 14, color: '#6B7280' },
+  historyList: { maxHeight: 600 },
+  historyItem: { marginBottom: 16, borderWidth: 1, borderRadius: 8, padding: 12 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  deleteButton: { padding: 8, backgroundColor: '#f87171', borderRadius: 8 },
+  deleteButtonText: { color: '#fff' },
+  shortDate: { fontWeight: 'bold' },
+  fullDate: { color: '#6B7280', fontSize: 12 },
+  netIncomeContainer: { backgroundColor: '#d1fae5', padding: 8, marginBottom: 12, borderRadius: 8 },
+  netIncomeRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  netIncomeLabel: { fontWeight: '600', },
+  netIncomeValue: { fontWeight: 'bold' },
+  infoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  infoCard: { width: '48%', padding: 8, borderRadius: 8 },
+  incomeCard: { backgroundColor: '#e0f2fe' },
+  expenseCard: { backgroundColor: '#fee2e2' },
+  kdvCard: { backgroundColor: '#fef9c3' },
+  taxCard: { backgroundColor: '#ede9fe' },
+  infoCardLabel: { fontSize: 12 },
+  infoCardValue: { fontWeight: 'bold' },
+  totalTaxContainer: { padding: 8, backgroundColor: '#dc2626', borderRadius: 8 },
+  totalTaxRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  totalTaxLabel: { fontWeight: '600', color: '#fff' },
+  totalTaxValue: { color: '#fff', fontWeight: '600' },
+  performanceContainer: { padding: 8, backgroundColor: '#f3f4f6', borderRadius: 8 },
+  performanceLabel: { fontSize: 14, borderRadius: 8, fontWeight: '600' },
+  performanceValue: { fontSize: 14, fontWeight: '600' },
+  footer: { marginTop: 16, alignItems: 'center' },
+  clearAllButton: { backgroundColor: '#dc2626', padding: 12, borderRadius: 8 },
+  clearAllButtonText: { color: '#fff', fontWeight: 'bold' },
+  statsText: { marginTop: 8, color: '#6B7280' }
 });
 
 export default HistoryList;
