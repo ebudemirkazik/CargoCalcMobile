@@ -1,4 +1,4 @@
-// App.jsx - Android Safe Area Fixed for All Devices
+// App.jsx - Safe Area Fixed for All Devices (Samsung A34 tested)
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import {
   View,
@@ -12,6 +12,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -31,27 +32,10 @@ import DataInputPage from './pages/DataInputPage';
 import ResultsPage from './pages/ResultsPage';
 import HistoryPage from './pages/HistoryPage';
 
-// Safe Area Calculations for Android
-const getStatusBarHeight = () => {
-  if (Platform.OS === 'ios') return 0;
-  return StatusBar.currentHeight || 0;
-};
-
-const getNotchPadding = () => {
-  // Modern Android phones with notches/punch holes
-  const aspectRatio = screenHeight / screenWidth;
+// Safe Area aware Main Component
+const AppContent = () => {
+  const insets = useSafeAreaInsets();
   
-  // Very tall screens (likely has notch/punch hole)
-  if (aspectRatio > 2.0) return 10;
-  
-  // Regular tall screens
-  if (aspectRatio > 1.9) return 5;
-  
-  return 0;
-};
-
-// Ana App Component
-export default function App() {
   // Global State
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState([]);
@@ -110,7 +94,7 @@ export default function App() {
     }
   };
 
-  // Enhanced State Functions with Loading & Error Handling
+  // Enhanced State Functions
   const handleAddExpense = async (newExpense) => {
     try {
       const expenseWithId = {
@@ -219,10 +203,38 @@ export default function App() {
     setError,
   };
 
+  // Safe area aware styles
+  const safeStyles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#F8FAFC',
+      paddingTop: insets.top,
+    },
+    tabBarWithSafeArea: {
+      flexDirection: 'row',
+      backgroundColor: '#ffffff',
+      borderTopWidth: 1,
+      borderTopColor: '#E5E7EB',
+      paddingBottom: Math.max(insets.bottom, 6), // En az 6px, safe area varsa daha fazla
+      paddingTop: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 5,
+    },
+    progressContainerWithSafeArea: {
+      backgroundColor: '#ffffff',
+      paddingVertical: 8,
+      alignItems: 'center',
+      paddingBottom: Math.max(insets.bottom + 8, 12), // Safe area + extra padding
+    },
+  });
+
   // Loading Screen
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={safeStyles.container}>
         <StatusBar 
           barStyle="dark-content" 
           backgroundColor="#F8FAFC" 
@@ -260,7 +272,7 @@ export default function App() {
   // Error Screen
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={safeStyles.container}>
         <StatusBar 
           barStyle="dark-content" 
           backgroundColor="#F8FAFC" 
@@ -324,7 +336,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <View style={styles.container}>
+      <View style={safeStyles.container}>
         <StatusBar 
           barStyle="dark-content" 
           backgroundColor="#F8FAFC" 
@@ -374,9 +386,9 @@ export default function App() {
           <ActivePageComponent />
         </View>
 
-        {/* Bottom Tab Navigation - Sadece sayfalardayken göster */}
+        {/* Bottom Tab Navigation - Safe Area Aware */}
         {activeTab !== null && (
-          <View style={styles.tabBar}>
+          <View style={safeStyles.tabBarWithSafeArea}>
             {tabs.map((tab) => (
               <TouchableOpacity
                 key={tab.id}
@@ -404,9 +416,9 @@ export default function App() {
           </View>
         )}
 
-        {/* Progress Indicator - Sadece sayfalardayken göster */}
+        {/* Progress Indicator - Safe Area Aware */}
         {activeTab !== null && (
-          <View style={styles.progressContainer}>
+          <View style={safeStyles.progressContainerWithSafeArea}>
             <View style={styles.progressBar}>
               {tabs.map((_, index) => (
                 <View
@@ -423,26 +435,30 @@ export default function App() {
 
         {/* Debug Info - Development only */}
         {__DEV__ && (
-          <View style={styles.debugInfo}>
+          <View style={[styles.debugInfo, { top: insets.top + 5 }]}>
             <Text style={styles.debugText}>
               📱 {Platform.OS} | 📏 {screenWidth}x{screenHeight} | 
-              📊 StatusBar: {getStatusBarHeight()}px | 
-              🔧 Notch: {getNotchPadding()}px
+              🔒 SafeArea: T:{insets.top} B:{insets.bottom} L:{insets.left} R:{insets.right}
             </Text>
           </View>
         )}
       </View>
     </AppContext.Provider>
   );
+};
+
+// Ana App Component - SafeAreaProvider ile sarmalı
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1 }} edges={[]}>
+        <AppContent />
+      </SafeAreaView>
+    </SafeAreaProvider>
+  );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    paddingTop: getStatusBarHeight() + getNotchPadding(),
-  },
-
   // Loading Screen
   loadingContainer: {
     flex: 1,
@@ -527,7 +543,6 @@ const styles = StyleSheet.create({
   },
 
   // Header - Dinamik Tasarım
-  // Landing Page Header (Büyük)
   headerLanding: {
     backgroundColor: '#ffffff',
     padding: Math.min(screenWidth * 0.05, 20),
@@ -563,7 +578,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Navigator Pages Header (Kompakt)
   headerCompact: {
     backgroundColor: '#ffffff',
     paddingHorizontal: Math.min(screenWidth * 0.05, 20),
@@ -605,24 +619,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Tab Bar - Responsive
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 6,
-    paddingTop: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
+  // Tab Button
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 8,
     paddingHorizontal: 4,
     minHeight: 50,
     justifyContent: 'center',
@@ -632,7 +633,7 @@ const styles = StyleSheet.create({
   },
   tabIcon: {
     fontSize: Math.min(screenWidth * 0.055, 20),
-    marginBottom: 2,
+    marginBottom: 4,
     opacity: 0.6,
   },
   tabIconActive: {
@@ -650,13 +651,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Progress Bar - Responsive
-  progressContainer: {
-    backgroundColor: '#ffffff',
-    paddingVertical: 8,
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 21 : 17,
-  },
+  // Progress Bar
   progressBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,7 +668,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.15 }],
   },
 
-  // Landing Page - Responsive
+  // Landing Page
   landingPage: {
     flex: 1,
     justifyContent: 'center',
@@ -746,10 +741,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 
-  // Debug Info - Development only
+  // Debug Info
   debugInfo: {
     position: 'absolute',
-    top: getStatusBarHeight() + getNotchPadding() + 5,
     left: 5,
     right: 5,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
