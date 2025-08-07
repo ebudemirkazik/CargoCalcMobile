@@ -1,5 +1,6 @@
 // App.jsx - Safe Area Fixed for All Devices (Samsung A34 tested)
 import React, { useState, createContext, useContext, useEffect } from 'react';
+import asyncStorageManager from './utils/AsyncStorage';
 import {
   View,
   Text,
@@ -84,6 +85,12 @@ const AppContent = () => {
 
       // Simulated app initialization
       await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Load fixedExpenses from AsyncStorage
+      const savedFixedExpenses = await asyncStorageManager.getItem('fixedExpenses');
+      if (savedFixedExpenses) {
+        setFixedExpenses(JSON.parse(savedFixedExpenses));
+      }
 
       // App ready
       setIsLoading(false);

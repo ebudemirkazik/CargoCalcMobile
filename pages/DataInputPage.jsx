@@ -51,6 +51,9 @@ const DataInputPage = () => {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
         >
           {/* Sayfa Başlığı */}
           <View style={styles.pageHeader}>
@@ -142,7 +145,7 @@ const DataInputPage = () => {
           </TouchableOpacity>
         </View>
       </SafeAreaView>
-    </SafeAreaProvider>
+    </SafeAreaProvider >
   );
 };
 
@@ -237,9 +240,9 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
     padding: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },   
-    shadowOpacity: 0.05,                       
-    shadowRadius: 2,                           
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 1,
   },
 

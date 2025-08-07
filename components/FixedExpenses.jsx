@@ -183,7 +183,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <View style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
         {/* Header */}
         <Text style={styles.headerTitle}>💾 Yıllık Sabit Giderler</Text>
@@ -397,7 +397,7 @@ function FixedExpenses({ onFixedExpensesChange, onAddToManualExpenses }) {
           </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
