@@ -115,8 +115,8 @@ const DataInputPage = () => {
             <Text style={styles.progressText}>
               {isIncomeComplete ? (
                 hasExpenses ?
-                  `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺ • ${expenses.length} masraf` :
-                  `✅ Hakediş: ${income.toLocaleString('tr-TR')}₺`
+                  `Hakediş: ${income.toLocaleString('tr-TR')}₺ • ${expenses.length} masraf` :
+                  `Hakediş: ${income.toLocaleString('tr-TR')}₺`
               ) : (
                 'Lütfen hakediş tutarını girin'
               )}
@@ -260,7 +260,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nextButtonEnabled: {
-
     backgroundColor: '#3B82F6',
     paddingVertical: Platform.OS === 'ios' ? 14 : 8,
     paddingHorizontal: Platform.OS === 'ios' ? 20 : 14,
@@ -277,6 +276,18 @@ const styles = StyleSheet.create({
   },
   nextButtonDisabled: {
     backgroundColor: '#D1D5DB',
+    paddingVertical: Platform.OS === 'ios' ? 14 : 8,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 14,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    minHeight: 25,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   nextButtonText: {
     fontSize: 16,

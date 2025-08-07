@@ -35,7 +35,7 @@ import HistoryPage from './pages/HistoryPage';
 // Safe Area aware Main Component
 const AppContent = () => {
   const insets = useSafeAreaInsets();
-  
+
   // Global State
   const [income, setIncome] = useState(0);
   const [expenses, setExpenses] = useState([]);
@@ -203,34 +203,37 @@ const AppContent = () => {
     setError,
   };
 
-  // Safe area aware styles
-  // NOT: tabBarWithSafeArea ve progressContainerWithSafeArea stilleri,
-  // paddingBottom: Math.max(insets.bottom, 6) ve Math.max(insets.bottom + 8, 12)
-  // ile evrensel safe area koruması sağlar. Tüm cihazlarda navigation bar çakışmalarını önler.
+  // Safe area aware styles - OPTIMIZED NAVIGATION SPACING
   const safeStyles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: '#F8FAFC',
       paddingTop: insets.top,
     },
-    tabBarWithSafeArea: {
-      flexDirection: 'row',
+    // Navigation Container - Tek parça olarak tasarlandı
+    navigationContainer: {
       backgroundColor: '#ffffff',
       borderTopWidth: 1,
       borderTopColor: '#E5E7EB',
-      paddingBottom: Math.max(insets.bottom -10, 15), // Safe area uyumlu
-      paddingTop: 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 5,
+
     },
-    progressContainerWithSafeArea: {
-      backgroundColor: '#ffffff',
-      paddingVertical: 8,
+    // Tab Bar - Progress indicator ile birleştirilmiş padding
+    tabBarOptimized: {
+      flexDirection: 'row',
+
+      paddingBottom: 6, // Progress indicator için minimum alan
+    },
+    // Progress Container - Dots yukarıda konumlandırılmış
+    progressContainerOptimized: {
       alignItems: 'center',
-      paddingBottom: Math.max(insets.bottom, 8), // Safe area uyumlu
+      paddingTop: 0, // Padding kaldırıldı
+      paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 8 : 4),
+      marginTop: Platform.OS === 'ios' ? -6 : -4, // Margin ile yukarı çek
     },
   });
 
@@ -238,9 +241,9 @@ const AppContent = () => {
   if (isLoading) {
     return (
       <View style={safeStyles.container}>
-        <StatusBar 
-          barStyle="dark-content" 
-          backgroundColor="#F8FAFC" 
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="#F8FAFC"
           translucent={false}
         />
         <View style={styles.loadingContainer}>
@@ -276,9 +279,9 @@ const AppContent = () => {
   if (error) {
     return (
       <View style={safeStyles.container}>
-        <StatusBar 
-          barStyle="dark-content" 
-          backgroundColor="#F8FAFC" 
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="#F8FAFC"
           translucent={false}
         />
         <View style={styles.errorContainer}>
@@ -340,9 +343,9 @@ const AppContent = () => {
   return (
     <AppContext.Provider value={contextValue}>
       <View style={safeStyles.container}>
-        <StatusBar 
-          barStyle="dark-content" 
-          backgroundColor="#F8FAFC" 
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor="#F8FAFC"
           translucent={false}
         />
 
@@ -389,51 +392,50 @@ const AppContent = () => {
           <ActivePageComponent />
         </View>
 
-        {/* Bottom Tab Navigation - Safe Area Aware */}
-        {/* safeStyles.tabBarWithSafeArea ve progressContainerWithSafeArea
-            navigation bar çakışmalarını önleyecek şekilde yapılandırılmıştır. */}
+        {/* Bottom Navigation - OPTIMIZED COMPACT DESIGN */}
         {activeTab !== null && (
-          <View style={safeStyles.tabBarWithSafeArea}>
-            {tabs.map((tab) => (
-              <TouchableOpacity
-                key={tab.id}
-                style={[
-                  styles.tabButton,
-                  activeTab === tab.id && styles.tabButtonActive
-                ]}
-                onPress={() => handleTabChange(tab.id)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.tabIcon,
-                  activeTab === tab.id && styles.tabIconActive
-                ]}>
-                  {tab.icon}
-                </Text>
-                <Text style={[
-                  styles.tabLabel,
-                  activeTab === tab.id && styles.tabLabelActive
-                ]}>
-                  {tab.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Progress Indicator - Safe Area Aware */}
-        {activeTab !== null && (
-          <View style={safeStyles.progressContainerWithSafeArea}>
-            <View style={styles.progressBar}>
-              {tabs.map((_, index) => (
-                <View
-                  key={index}
+          <View style={safeStyles.navigationContainer}>
+            {/* Tab Bar */}
+            <View style={safeStyles.tabBarOptimized}>
+              {tabs.map((tab) => (
+                <TouchableOpacity
+                  key={tab.id}
                   style={[
-                    styles.progressDot,
-                    activeTab == index && styles.progressDotActive
+                    styles.tabButton,
+                    activeTab === tab.id && styles.tabButtonActive
                   ]}
-                />
+                  onPress={() => handleTabChange(tab.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.tabIcon,
+                    activeTab === tab.id && styles.tabIconActive
+                  ]}>
+                    {tab.icon}
+                  </Text>
+                  <Text style={[
+                    styles.tabLabel,
+                    activeTab === tab.id && styles.tabLabelActive
+                  ]}>
+                    {tab.name}
+                  </Text>
+                </TouchableOpacity>
               ))}
+            </View>
+
+            {/* Progress Indicator - Kompakt Tasarım */}
+            <View style={safeStyles.progressContainerOptimized}>
+              <View style={styles.progressBar}>
+                {tabs.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.progressDot,
+                      activeTab === index && styles.progressDotActive
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
           </View>
         )}
@@ -442,7 +444,7 @@ const AppContent = () => {
         {__DEV__ && (
           <View style={[styles.debugInfo, { top: insets.top + 5 }]}>
             <Text style={styles.debugText}>
-              📱 {Platform.OS} | 📏 {screenWidth}x{screenHeight} | 
+              📱 {Platform.OS} | 📏 {screenWidth}x{screenHeight} |
               🔒 SafeArea: T:{insets.top} B:{insets.bottom} L:{insets.left} R:{insets.right}
             </Text>
           </View>
@@ -453,7 +455,6 @@ const AppContent = () => {
 };
 
 // Ana App Component - SafeAreaProvider ile sarmalı
-// SafeAreaProvider ve SafeAreaView zaten doğru şekilde kullanılmakta.
 export default function App() {
   return (
     <SafeAreaProvider>
@@ -625,21 +626,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Tab Button
+  // Tab Button - OPTIMIZED
   tabButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    minHeight: 50,
     justifyContent: 'center',
+    paddingVertical: 6, // Kompakt tasarım
   },
   tabButtonActive: {
     // Active state handled by individual elements
   },
   tabIcon: {
-    fontSize: Math.min(screenWidth * 0.065, 24),
-    marginBottom: 4,
+    fontSize: Math.min(screenWidth * 0.06, 22), // Slightly smaller
+    marginBottom: 3, // Reduced spacing
     opacity: 0.6,
   },
   tabIconActive: {
@@ -647,31 +646,34 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.05 }],
   },
   tabLabel: {
-    fontSize: Math.min(screenWidth * 0.032, 12),
+    fontSize: Math.min(screenWidth * 0.03, 11), // Slightly smaller
     color: '#6B7280',
     fontWeight: '700',
     textAlign: 'center',
+    lineHeight: 12,
   },
   tabLabelActive: {
     color: '#3B82F6',
     fontWeight: '600',
   },
 
-  // Progress Bar
+  // Progress Bar - OPTIMIZED & POSITIONED
   progressBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
+    top: Platform.OS === 'ios' ? -3 : -2, // Dot'ları yukarı pozisyonla
   },
   progressDot: {
-    width: Math.min(screenWidth * 0.02, 9),
-    height: Math.min(screenWidth * 0.02, 9),
-    borderRadius: Math.min(screenWidth * 0.001, 4),
+    width: Math.min(screenWidth * 0.018, 7), // Smaller dots
+    height: Math.min(screenWidth * 0.018, 7),
+    borderRadius: Math.min(screenWidth * 0.009, 3.5),
     backgroundColor: '#D1D5DB',
-    marginHorizontal: 3,
+    marginHorizontal: 2, // Reduced spacing
   },
   progressDotActive: {
     backgroundColor: '#3B82F6',
-    transform: [{ scale: 1.25 }],
+    transform: [{ scale: 1.3 }],
   },
 
   // Landing Page

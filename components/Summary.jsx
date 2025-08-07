@@ -1,4 +1,4 @@
-// Summary.jsx - Clean Design React Native Version
+// Summary.jsx - Refactored to use taxCalculator.js
 import React, { useState } from 'react';
 import {
   View,
@@ -8,13 +8,14 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import { calculateMonthlyIncomeTaxFromGross } from '../utils/taxCalculator';
 import asyncStorageManager from '../utils/AsyncStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
 
 const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
-  // Hesaplamalar - "Fatura" gizli özelliği ile
+  // Masraf Hesaplamaları
   const visibleExpenses = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
     // "Fatura" adlı masraflar görünür masraflara eklenmez
     if (expense.isHiddenFromVisible || expense.name.toLowerCase() === 'fatura') return sum;
@@ -30,7 +31,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
     if (!expense.hasFatura) return sum;
 
     const amount = expense.amount || 0;
-    const rate = expense.kdvRate || 0;
+    const rate = expense.kdvRate || 20; // Default 20%
     const kdvAmount = (amount * rate) / (100 + rate);
 
     return sum + kdvAmount;
@@ -38,7 +39,7 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
   const fixedExpenseKdv = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
     const amount = expense.monthlyAmount || 0;
-    const rate = expense.kdvRate || 0;
+    const rate = expense.kdvRate || 20; // Default 20%
     const kdvAmount = (amount * rate) / (100 + rate);
 
     return sum + kdvAmount;
@@ -46,52 +47,117 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
   const toplamIndirilecekKdv = expenseKdv + fixedExpenseKdv;
 
-  // Gelir Vergisi Hesaplama - Tüm faturalı masraflar matrahtan düşülebilir (gizli olanlar dahil)
+  // Faturalı masraflar (gelir vergisi matrahından düşülebilir)
   const faturaliMasraflar = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
-    // Sadece fatura varsa gelir vergisi matrahından düşülebilir (gizli olsa bile)
     if (!expense.hasFatura) return sum;
     return sum + (expense.amount || 0);
   }, 0) : 0;
 
-  const indirilebilirMasraflar = faturaliMasraflar + totalFixedExpenses; // Sabit giderler her zaman indirilebilir
+  const indirilebilirMasraflar = faturaliMasraflar + totalFixedExpenses;
 
-  console.log('Vergi hesaplamaları (Fatura gizli özelliği ile):', {
-    totalExpenses: allExpenses, // Görünür masraflar
-    visibleExpenses,
-    faturaliMasraflar, // Tüm faturalı masraflar (gizli dahil)
-    totalFixedExpenses,
-    indirilebilirMasraflar,
-    expenseKdv,
-    fixedExpenseKdv,
-    toplamIndirilecekKdv
-  });
+  // **DOĞRU VERGİ HESAPLAMA SİSTEMİ - Düzeltildi**
+  const grossIncome = income || 0;
+  
+  // 1️⃣ KDV hariç aylık gelir
+  const kdvHaricAylikGelir = grossIncome / 1.20;
+  
+  // 2️⃣ Faturalı masrafların KDV HARİÇ tutarını hesapla
+  const faturaliMasraflarKdvHaric = Array.isArray(expenses) ? expenses.reduce((sum, expense) => {
+    if (!expense.hasFatura) return sum;
+    const amount = expense.amount || 0;
+    const rate = expense.kdvRate || 20;
+    const kdvHaricTutar = amount / (1 + rate/100);
+    return sum + kdvHaricTutar;
+  }, 0) : 0;
+  
+  const sabitGiderlerKdvHaric = Array.isArray(fixedExpenses) ? fixedExpenses.reduce((sum, expense) => {
+    const amount = expense.monthlyAmount || 0;
+    const rate = expense.kdvRate || 20;
+    const kdvHaricTutar = amount / (1 + rate/100);
+    return sum + kdvHaricTutar;
+  }, 0) : 0;
+  
+  const toplamIndirilebilirAylikGiderKdvHaric = faturaliMasraflarKdvHaric + sabitGiderlerKdvHaric;
+  
+  // 3️⃣ Masraf düşülmüş aylık gelir vergisi matrahı
+  const aylikGelirVergisiMatrahi = Math.max(0, kdvHaricAylikGelir - toplamIndirilebilirAylikGiderKdvHaric);
+  
+  // 4️⃣ Yıllık matrah yap ve vergi hesapla
+  const yillikGelirVergisiMatrahi = aylikGelirVergisiMatrahi * 12;
+  const yillikGelirVergisi = yillikGelirVergisiMatrahi > 0 ? calculateYearlyIncomeTax(yillikGelirVergisiMatrahi) : 0;
+  const gelirVergisi = yillikGelirVergisi / 12;
 
-  // Gelir KDV'si (%20)
-  const gelirKdvsi = (income || 0) * (0.20 / 1.20); //KDV dahil tutardan %20'lik kısmı çıkarıyoruz
+  // 5️⃣ KDV Hesaplamaları
+  const gelirKdvsi = grossIncome * (0.20 / 1.20);
   const odenecekKdv = Math.max(0, gelirKdvsi - toplamIndirilecekKdv);
 
-  // Gelir Vergisi Hesaplama (KDV hariç gelir üzerinden)
-  const kdvHaricGelir = (income || 0) / 1.20;
-  const kdvHaricIndirilebilirGiderler = indirilebilirMasraflar / 1.20; // Sadece faturalı masraflar
-  const vergiyeTabiGelir = kdvHaricGelir - kdvHaricIndirilebilirGiderler;
+  // taxCalculator.js'den TAMAMEN kopyalanan hesaplama mantığı
+  function calculateYearlyIncomeTax(yearlyIncome) {
+    const taxBrackets = [
+      { min: 0, max: 158000, rate: 0.15, fixedTax: 0 },
+      { min: 158000, max: 330000, rate: 0.20, fixedTax: 23700 },
+      { min: 330000, max: 1200000, rate: 0.27, fixedTax: 58100 },
+      { min: 1200000, max: 4300000, rate: 0.35, fixedTax: 293000 },
+      { min: 4300000, max: Infinity, rate: 0.40, fixedTax: 1378000 }
+    ];
 
-  let gelirVergisi = 0;
-  if (vergiyeTabiGelir > 0) {
-    if (vergiyeTabiGelir <= 110000) {
-      gelirVergisi = vergiyeTabiGelir * 0.15;
-    } else if (vergiyeTabiGelir <= 230000) {
-      gelirVergisi = 110000 * 0.15 + (vergiyeTabiGelir - 110000) * 0.20;
-    } else if (vergiyeTabiGelir <= 870000) {
-      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + (vergiyeTabiGelir - 230000) * 0.27;
-    } else if (vergiyeTabiGelir <= 3000000) {
-      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + 640000 * 0.27 + (vergiyeTabiGelir - 870000) * 0.35;
-    } else {
-      gelirVergisi = 110000 * 0.15 + 120000 * 0.20 + 640000 * 0.27 + 2130000 * 0.35 + (vergiyeTabiGelir - 3000000) * 0.40;
+    if (yearlyIncome <= 0) return 0;
+
+    // NOT: taxCalculator.js aylık gelir ile çalışıyor, biz yıllık yapacağız
+    // Yıllık geliri aylık hale getir, taxCalculator mantığını uygula, sonra 12 ile çarp
+    const monthlyIncome = yearlyIncome / 12;
+    
+    // 1️⃣ KDV'siz net matrahı hesapla (zaten KDV hariç giriyor)
+    const monthlyNetIncome = monthlyIncome;
+
+    // 2️⃣ Yıllık matrahı hesapla
+    const annualIncome = monthlyNetIncome * 12;
+
+    // 3️⃣ Gelir vergisini yıllık hesapla
+    let totalAnnualTax = 0;
+    for (let i = 0; i < taxBrackets.length; i++) {
+      const bracket = taxBrackets[i];
+      if (annualIncome > bracket.min && annualIncome <= bracket.max) {
+        const taxable = annualIncome - bracket.min;
+        totalAnnualTax = bracket.fixedTax + (taxable * bracket.rate);
+        
+        console.log(`taxCalculator mantığı:`, {
+          annualIncome,
+          bracket: `${bracket.min}-${bracket.max}`,
+          rate: `%${bracket.rate * 100}`,
+          fixedTax: bracket.fixedTax,
+          taxable,
+          totalAnnualTax: totalAnnualTax.toFixed(2)
+        });
+        
+        break;
+      }
     }
-  }
 
+    return Math.round(totalAnnualTax * 100) / 100;
+  }
+  
+  // Görüntüleme için backward compatibility (eski adlar)
+  const vergiyeTabiGelir = aylikGelirVergisiMatrahi;
+  const kdvHaricGelir = kdvHaricAylikGelir;
+  
+  // Toplam vergi ve net kazanç
   const toplamVergi = odenecekKdv + gelirVergisi;
-  const netKazanc = (income || 0) - allExpenses - toplamVergi;
+  const netKazanc = grossIncome - allExpenses - toplamVergi;
+
+  // Debug log
+  console.log('DOĞRU Vergi Hesaplamaları - Adım Adım:', {
+    '1_grossIncome_KDV_Dahil': grossIncome,
+    '2_kdvHaricAylikGelir': kdvHaricAylikGelir.toFixed(2),
+    '3_toplamIndirilebilirAylikGider': toplamIndirilebilirAylikGiderKdvHaric.toFixed(2),
+    '4_aylikGelirVergisiMatrahi': aylikGelirVergisiMatrahi.toFixed(2),
+    '5_yillikGelirVergisiMatrahi': yillikGelirVergisiMatrahi.toFixed(2),
+    '6_yillikGelirVergisi': yillikGelirVergisi.toFixed(2),
+    '7_aylikGelirVergisi': gelirVergisi.toFixed(2),
+    'KDV_gelirKdvsi': gelirKdvsi.toFixed(2),
+    'KDV_toplamIndirilecek': toplamIndirilecekKdv.toFixed(2),
+    'KDV_odenecek': odenecekKdv.toFixed(2)
+  });
 
   const format = (amount) => {
     if (!amount || isNaN(amount)) return '0';
@@ -100,40 +166,44 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
   // AsyncStorage'a kaydetme fonksiyonu
   const saveToHistory = async () => {
-  try {
-    const historyData = {
-      date: new Date().toISOString(),
-      income: income || 0,
-      expenses: expenses || [],
-      fixedExpenses: fixedExpenses || [],
-      totalExpenses: allExpenses,
-      odenecekKdv: odenecekKdv,
-      gelirVergisi: gelirVergisi,
-      toplamVergi: toplamVergi,
-      netKazanc: netKazanc,
-      vergiyeTabiGelir: vergiyeTabiGelir,
-      kdvHaricGelir: kdvHaricGelir,
-      faturaliMasraflar: faturaliMasraflar,
-      indirilebilirMasraflar: indirilebilirMasraflar,
-      timestamp: Date.now(),
-    };
+    try {
+      const historyData = {
+        date: new Date().toISOString(),
+        income: grossIncome,
+        expenses: expenses || [],
+        fixedExpenses: fixedExpenses || [],
+        totalExpenses: allExpenses,
+        odenecekKdv: odenecekKdv,
+        gelirVergisi: gelirVergisi,
+        toplamVergi: toplamVergi,
+        netKazanc: netKazanc,
+        vergiyeTabiGelir: vergiyeTabiGelir,
+        kdvHaricGelir: kdvHaricGelir,
+        faturaliMasraflar: faturaliMasraflar,
+        indirilebilirMasraflar: indirilebilirMasraflar,
+        toplamIndirilecekKdv: toplamIndirilecekKdv,
+        timestamp: Date.now(),
+        // Hesaplama yöntemi bilgisi
+        calculationMethod: 'taxCalculator.js',
+        version: '2.0'
+      };
 
-    const existingData = await asyncStorageManager.getItem('cargoCalcHistory');
-    const history = existingData ? JSON.parse(existingData) : [];
+      const existingData = await asyncStorageManager.getItem('cargoCalcHistory');
+      const history = existingData ? JSON.parse(existingData) : [];
 
-    const updated = [historyData, ...history.slice(0, 49)];
-    await asyncStorageManager.setItem('cargoCalcHistory', JSON.stringify(updated));
+      const updated = [historyData, ...history.slice(0, 49)];
+      await asyncStorageManager.setItem('cargoCalcHistory', JSON.stringify(updated));
 
-    Alert.alert('Başarılı!', 'Hesaplama geçmişe kaydedildi.');
+      Alert.alert('Başarılı!', 'Hesaplama geçmişe kaydedildi.');
 
-    if (onHistorySaved) {
-      onHistorySaved();
+      if (onHistorySaved) {
+        onHistorySaved();
+      }
+    } catch (error) {
+      console.error('Kaydetme hatası:', error);
+      Alert.alert('Hata!', 'Hesaplama kaydedilemedi: ' + error.message);
     }
-  } catch (error) {
-    console.error('Kaydetme hatası:', error);
-    Alert.alert('Hata!', 'Hesaplama kaydedilemedi: ' + error.message);
-  }
-};
+  };
 
   return (
     <View style={styles.container}>
@@ -146,14 +216,14 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
           <View style={[styles.colorBar, styles.incomeBar]} />
           <Text style={styles.summaryLabel}>Hakediş:</Text>
           <Text style={[styles.summaryValue, styles.incomeValue]}>
-            {format(income || 0)} ₺
+            {format(grossIncome)} ₺
           </Text>
         </View>
 
         {/* Görünür Masraflar */}
         <View style={styles.summaryRow}>
           <View style={[styles.colorBar, styles.expenseBar]} />
-          <Text style={styles.summaryLabel}>Görünür Masraflar:</Text>
+          <Text style={styles.summaryLabel}>Masraflar:</Text>
           <Text style={[styles.summaryValue, styles.expenseValue]}>
             {format(allExpenses)} ₺
           </Text>
@@ -162,50 +232,66 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
 
       {/* Vergi Detayları */}
       <View style={styles.taxCard}>
-        <Text style={styles.taxTitle}>Vergi Detayları</Text>
+        <Text style={styles.taxTitle}>💳 Vergi Detayları</Text>
         <Text style={[styles.taxTotal, styles.negative]}>
           {format(toplamVergi)} ₺
         </Text>
 
         <View style={styles.taxDetails}>
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Toplam İndirilecek KDV:</Text>
-            <Text style={[styles.taxValue, styles.positive]}>
-              {format(toplamIndirilecekKdv)} ₺
+            <Text style={styles.taxLabel}>📋 KDV Dahil Gelir:</Text>
+            <Text style={styles.taxValue}>
+              {format(grossIncome)} ₺
             </Text>
           </View>
 
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Hakediş KDV (%20):</Text>
+            <Text style={styles.taxLabel}>💰 KDV Hariç Gelir:</Text>
+            <Text style={styles.taxValue}>
+              {format(kdvHaricGelir)} ₺
+            </Text>
+          </View>
+
+          <View style={styles.taxRow}>
+            <Text style={styles.taxLabel}>📄 İndirilebilir Masraflar:</Text>
+            <Text style={[styles.taxValue, styles.positive]}>
+              -{format(indirilebilirMasraflar)} ₺
+            </Text>
+          </View>
+
+          <View style={styles.taxRow}>
+            <Text style={styles.taxLabel}>📈 Gelir Vergisi Matrahı:</Text>
+            <Text style={styles.taxValue}>
+              {format(vergiyeTabiGelir)} ₺
+            </Text>
+          </View>
+
+          <View style={styles.separator} />
+
+          <View style={styles.taxRow}>
+            <Text style={styles.taxLabel}>🔢 Gelir KDV'si (%20):</Text>
             <Text style={styles.taxValue}>
               {format(gelirKdvsi)} ₺
             </Text>
           </View>
 
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Ödenecek KDV:</Text>
-            <Text style={[styles.taxValue, styles.negative]}>
+            <Text style={styles.taxLabel}>📉 İndirilecek KDV:</Text>
+            <Text style={[styles.taxValue, styles.positive]}>
+              -{format(toplamIndirilecekKdv)} ₺
+            </Text>
+          </View>
+
+          <View style={styles.taxRow}>
+            <Text style={[styles.taxLabel, styles.boldLabel]}>💸 Ödenecek KDV:</Text>
+            <Text style={[styles.taxValue, styles.negative, styles.boldValue]}>
               {format(odenecekKdv)} ₺
             </Text>
           </View>
 
           <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Gelir Vergisi Matrahı:</Text>
-            <Text style={styles.taxValue}>
-              {format(Math.max(0, vergiyeTabiGelir))} ₺
-            </Text>
-          </View>
-
-          <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>İndirilebilir Masraflar:</Text>
-            <Text style={[styles.taxValue, styles.positive]}>
-              {format(indirilebilirMasraflar)} ₺
-            </Text>
-          </View>
-
-          <View style={styles.taxRow}>
-            <Text style={styles.taxLabel}>Gelir Vergisi:</Text>
-            <Text style={[styles.taxValue, styles.negative]}>
+            <Text style={[styles.taxLabel, styles.boldLabel]}>🏛️ Gelir Vergisi:</Text>
+            <Text style={[styles.taxValue, styles.negative, styles.boldValue]}>
               {format(gelirVergisi)} ₺
             </Text>
           </View>
@@ -215,10 +301,13 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
       {/* Toplam Vergi Yükü */}
       <View style={styles.totalTaxCard}>
         <Text style={styles.totalTaxTitle}>
-          Toplam Vergi Yükü (KDV + Gelir Vergisi):
+          🔴 Toplam Vergi Yükü (KDV + Gelir Vergisi):
         </Text>
         <Text style={[styles.totalTaxValue, styles.negative]}>
           {format(toplamVergi)} ₺
+        </Text>
+        <Text style={styles.taxRateInfo}>
+          Gelir oranı: %{((toplamVergi / grossIncome) * 100).toFixed(1)}
         </Text>
       </View>
 
@@ -227,17 +316,14 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
         styles.netIncomeCard,
         { backgroundColor: netKazanc >= 0 ? '#059669' : '#DC2626' }
       ]}>
-        <Text style={[
-          styles.netIncomeTitle,
-          { color: '#ffffff' }
-        ]}>
-          NET KAZANÇ
+        <Text style={styles.netIncomeTitle}>
+          {netKazanc >= 0 ? '🎉 NET KAZANÇ' : '⚠️ NET ZARAR'}
         </Text>
         <Text style={styles.netIncomeValue}>
-          {format(netKazanc)} ₺
+          {format(Math.abs(netKazanc))} ₺
         </Text>
         <Text style={styles.netIncomeSubtitle}>
-          {netKazanc < 0 ? 'Tüm vergiler düşülmüş net zarar' : 'Tüm vergiler düşülmüş net kar'}
+          {netKazanc < 0 ? 'Tüm vergiler ve masraflar düşülmüş net zarar' : 'Tüm vergiler ve masraflar düşülmüş net kar'}
         </Text>
       </View>
 
@@ -250,12 +336,19 @@ const Summary = ({ income, expenses, fixedExpenses = [], onHistorySaved }) => {
         <Text style={styles.saveButtonText}>💾 Hesaplamayı Kaydet</Text>
       </TouchableOpacity>
 
+      {/* Hesaplama Bilgisi */}
+      <View style={styles.calculationInfo}>
+        <Text style={styles.calculationInfoText}>
+          ✅ Hesaplamalar taxCalculator.js kullanılarak yapıldı
+        </Text>
+      </View>
+
       {/* Uyarı */}
       <View style={styles.warning}>
         <Text style={styles.warningIcon}>⚠️</Text>
         <Text style={styles.warningText}>
-          Bu hesaplamalar tahminidir. Gerçek vergi hesaplamaları için mutlaka
-          muhasebeci ile görüşünüz.
+          Bu hesaplamalar 2024 vergi dilimi tablosuna göre tahminidir. 
+          Gerçek vergi hesaplamaları için mutlaka muhasebeci ile görüşünüz.
         </Text>
       </View>
     </View>
@@ -343,7 +436,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   taxDetails: {
-    gap: 8,
+    gap: 6,
   },
   taxRow: {
     flexDirection: 'row',
@@ -353,13 +446,26 @@ const styles = StyleSheet.create({
   },
   taxLabel: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: '#64748B',
   },
-  taxValue: {
-    fontSize: 14,
+  boldLabel: {
     fontWeight: '600',
     color: '#1E293B',
+  },
+  taxValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  boldValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#CBD5E1',
+    marginVertical: 8,
   },
 
   // Total Tax Card
@@ -377,10 +483,17 @@ const styles = StyleSheet.create({
     color: '#7F1D1D',
     marginBottom: 8,
     textAlign: 'center',
+    fontWeight: '600',
   },
   totalTaxValue: {
     fontSize: 18,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  taxRateInfo: {
+    fontSize: 12,
+    color: '#7F1D1D',
+    fontStyle: 'italic',
   },
 
   // Net Income Card
@@ -394,17 +507,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: '#ffffff',
   },
   netIncomeValue: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 4,
-    color: '#ffffff', // Her zaman beyaz
+    color: '#ffffff',
   },
   netIncomeSubtitle: {
     fontSize: 12,
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.8)', // Her zaman beyaz opak
+    color: 'rgba(255,255,255,0.8)',
   },
 
   // Colors
@@ -428,6 +542,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Calculation Info
+  calculationInfo: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  calculationInfoText: {
+    fontSize: 11,
+    color: '#065F46',
+    fontWeight: '500',
   },
 
   // Warning
