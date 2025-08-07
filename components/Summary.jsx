@@ -8,7 +8,6 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { calculateMonthlyIncomeTaxFromGross } from '../utils/taxCalculator';
 import asyncStorageManager from '../utils/AsyncStorage';
 
 const { width: screenWidth } = Dimensions.get('window');
