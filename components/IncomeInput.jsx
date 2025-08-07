@@ -134,7 +134,6 @@ function IncomeInput({ income, setIncome }) {
   };
 
   const popularAmounts = quickAmounts.filter(item => item.popular);
-  const otherAmounts = quickAmounts.filter(item => !item.popular);
 
   return (
     <View style={styles.container}>
